@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from 'sonner';
 import { UserPlus, Edit, Users } from 'lucide-react';
 import { formatHoursMinutes } from '@/lib/lgav';
+import { EmployeeImportDropZone } from '@/components/EmployeeImportDropZone';
 
 type EmployeeType = 'fixed' | 'hourly';
 
@@ -162,6 +163,9 @@ export default function Employees() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Excel Import Drop Zone */}
+      <EmployeeImportDropZone onImported={loadEmployees} />
 
       {employees.length === 0 ? (
         <Card>
