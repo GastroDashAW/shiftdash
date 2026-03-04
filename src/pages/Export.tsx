@@ -3,8 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { FileDown, FileText } from 'lucide-react';
+import { FileDown, FileText, FileSpreadsheet, Trash2, Download } from 'lucide-react';
 import { formatHoursMinutes, formatTime, calculateMonthlyTargetHours, calculateHourlySurcharges } from '@/lib/lgav';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -16,11 +17,22 @@ const absenceLabels: Record<string, string> = {
   holiday: 'Feiertag', military: 'Militär', other: 'Andere',
 };
 
+import { FileDropZone } from '@/components/FileDropZone';
+
 export default function ExportPage() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [templates, setTemplates] = useState<any[]>([]);
+
+  const loadTemplates = async () => {
+    const { data } = await supabase
+      .from('form_templates')
+      .select('*')
+      .order('created_at', { ascending: false });
+    setTemplates(data || []);
+  };
 
   useEffect(() => {
     supabase.from('employees').select('*').eq('is_active', true)
@@ -28,6 +40,7 @@ export default function ExportPage() {
         setEmployees(data || []);
         if (data?.[0]) setSelectedEmployee(data[0].id);
       });
+    loadTemplates();
   }, []);
 
   const exportCSV = async () => {
@@ -223,6 +236,67 @@ export default function ExportPage() {
               CSV
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Template Upload */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">L-GAV Formular-Vorlagen</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <FileDropZone onUploaded={loadTemplates} />
+
+          {/* Uploaded templates list */}
+          {templates.length > 0 && (
+            <div className="space-y-2 pt-2">
+              <p className="text-sm font-medium text-muted-foreground">Hochgeladene Vorlagen</p>
+              {templates.map(t => (
+                <div key={t.id} className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="flex items-center gap-3">
+                    <FileSpreadsheet className="h-5 w-5 text-success" />
+                    <div>
+                      <p className="text-sm font-medium">{t.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <Badge variant={t.employee_type === 'fixed' ? 'default' : 'secondary'} className="text-xs">
+                          {t.employee_type === 'fixed' ? 'Monatslohn' : 'Stundenlohn'}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(t.created_at).toLocaleDateString('de-CH')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={async () => {
+                        const { data } = await supabase.storage
+                          .from('form-templates')
+                          .createSignedUrl(t.file_path, 60);
+                        if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+                      }}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={async () => {
+                        await supabase.storage.from('form-templates').remove([t.file_path]);
+                        await supabase.from('form_templates').delete().eq('id', t.id);
+                        toast.success('Vorlage gelöscht');
+                        loadTemplates();
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

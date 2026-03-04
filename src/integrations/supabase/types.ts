@@ -65,6 +65,36 @@ export type Database = {
         }
         Relationships: []
       }
+      form_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          employee_type: Database["public"]["Enums"]["employee_type"]
+          file_path: string
+          id: string
+          name: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          employee_type?: Database["public"]["Enums"]["employee_type"]
+          file_path: string
+          id?: string
+          name: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          employee_type?: Database["public"]["Enums"]["employee_type"]
+          file_path?: string
+          id?: string
+          name?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       monthly_summaries: {
         Row: {
           accident_days: number | null
