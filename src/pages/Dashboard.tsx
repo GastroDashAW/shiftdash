@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,13 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { calculateEffectiveHours, checkRestTimeViolation, formatTime, formatHoursMinutes } from '@/lib/lgav';
-import { Clock, Play, Square, Coffee, AlertTriangle } from 'lucide-react';
+import { Clock, Play, Square, Coffee, AlertTriangle, UserPlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 type AbsenceType = 'vacation' | 'sick' | 'accident' | 'holiday' | 'military' | 'other';
 
 export default function Dashboard() {
   const { user, employeeId, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [activeEntry, setActiveEntry] = useState<any>(null);
   const [todayEntries, setTodayEntries] = useState<any[]>([]);
   const [breakMinutes, setBreakMinutes] = useState('');
@@ -224,7 +226,25 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Rest time warning */}
+      {/* No employee warning */}
+      {!currentEmployeeId && (
+        <Card className="border-warning bg-warning/10">
+          <CardContent className="flex flex-col items-center gap-3 py-6">
+            <UserPlus className="h-8 w-8 text-warning" />
+            <p className="text-sm font-medium text-center">
+              Kein Mitarbeiterprofil vorhanden. Bitte zuerst einen Mitarbeiter erfassen.
+            </p>
+            {isAdmin && (
+              <Button onClick={() => navigate('/employees')} className="gap-2">
+                <UserPlus className="h-4 w-4" />
+                Mitarbeiter erfassen
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+
       <AnimatePresence>
         {restWarning && (
           <motion.div
