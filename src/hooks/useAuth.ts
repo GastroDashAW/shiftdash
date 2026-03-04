@@ -37,7 +37,28 @@ export function useAuth() {
       }
     );
 
-    supabase.auth.getSession();
+    // Ensure initial session is checked
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      // If onAuthStateChange hasn't fired yet, handle it here
+      if (loading) {
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        if (currentUser) {
+          Promise.all([
+            supabase.from('user_roles').select('role').eq('user_id', currentUser.id),
+            supabase.from('employees').select('id').eq('user_id', currentUser.id).maybeSingle(),
+          ]).then(([rolesRes, empRes]) => {
+            setIsAdmin(rolesRes.data?.some(r => r.role === 'admin') ?? false);
+            setEmployeeId(empRes.data?.id ?? null);
+            setLoading(false);
+          });
+        } else {
+          setIsAdmin(false);
+          setEmployeeId(null);
+          setLoading(false);
+        }
+      }
+    });
 
     return () => subscription.unsubscribe();
   }, []);
