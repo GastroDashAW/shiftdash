@@ -1,21 +1,17 @@
 import { ReactNode } from 'react';
-import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { NavLink } from '@/components/NavLink';
-import { Clock, Users, CalendarCheck, FileDown, LogOut, Menu, X } from 'lucide-react';
+import { Clock, Users, CalendarCheck, FileDown, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 
 export function Layout({ children }: { children: ReactNode }) {
-  const { user, isAdmin, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const navItems = [
     { to: '/', label: 'Stempeln', icon: Clock },
-    ...(isAdmin ? [
-      { to: '/employees', label: 'Mitarbeiter', icon: Users },
-      { to: '/validation', label: 'Validierung', icon: CalendarCheck },
-      { to: '/export', label: 'Export', icon: FileDown },
-    ] : []),
+    { to: '/employees', label: 'Mitarbeiter', icon: Users },
+    { to: '/validation', label: 'Validierung', icon: CalendarCheck },
+    { to: '/export', label: 'Export', icon: FileDown },
   ];
 
   return (
@@ -32,7 +28,7 @@ export function Layout({ children }: { children: ReactNode }) {
           
           <div className="flex items-center gap-2">
             <span className="hidden text-xs text-muted-foreground sm:block">
-              {user?.email}
+              GastroTime
             </span>
             <Button
               variant="ghost"
@@ -58,10 +54,7 @@ export function Layout({ children }: { children: ReactNode }) {
                 </NavLink>
               ))}
             </div>
-            <Button variant="ghost" size="sm" onClick={signOut} className="justify-start gap-2">
-              <LogOut className="h-4 w-4" />
-              Abmelden
-            </Button>
+            {/* Abmelden button removed */}
           </div>
         </nav>
 
@@ -80,11 +73,7 @@ export function Layout({ children }: { children: ReactNode }) {
                   {item.label}
                 </NavLink>
               ))}
-              <hr className="my-2" />
-              <Button variant="ghost" onClick={signOut} className="justify-start gap-3 px-4 py-3">
-                <LogOut className="h-5 w-5" />
-                Abmelden
-              </Button>
+              {/* Abmelden button removed */}
             </nav>
           </div>
         )}
