@@ -50,6 +50,10 @@ const defaultDayHours: DayHoursMap = {
   6: { open: '11:00', close: '23:00' },
 };
 
+const defaultShiftsPerDay: ShiftsPerDay = {
+  0: 0, 1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2,
+};
+
 const empty: BusinessData = {
   name: '', address: '', phone: '', url: '',
   contact_person: '', vat_number: '',
@@ -58,6 +62,7 @@ const empty: BusinessData = {
   closed_days: [0],
   auto_sync_schedule: false,
   day_opening_hours: defaultDayHours,
+  shifts_per_day: defaultShiftsPerDay,
 };
 
 export default function Business() {
