@@ -59,6 +59,33 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_revenues: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          revenue_gross: number
+          updated_at: string
+          vat_rate: number
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          revenue_gross?: number
+          updated_at?: string
+          vat_rate?: number
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          revenue_gross?: number
+          updated_at?: string
+          vat_rate?: number
+        }
+        Relationships: []
+      }
       employees: {
         Row: {
           cost_center: string
