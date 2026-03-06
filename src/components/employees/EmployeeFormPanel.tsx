@@ -24,6 +24,17 @@ export function EmployeeFormPanel({ form, setForm, editingId, employees, creatin
   const currentEmp = editingId ? employees.find(e => e.id === editingId) : null;
   const hasLogin = !!currentEmp?.user_id;
 
+  const [openDays, setOpenDays] = useState<string[]>([...ALL_WEEKDAYS]);
+
+  useEffect(() => {
+    supabase.from('business_settings').select('opening_days').limit(1).single().then(({ data }) => {
+      if (data?.opening_days) {
+        const days = (data.opening_days as string).split(',').map(d => d.trim()).filter(Boolean);
+        if (days.length > 0) setOpenDays(days);
+      }
+    });
+  }, []);
+
   const toggleDay = (day: string) => {
     setForm(f => ({
       ...f,
