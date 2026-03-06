@@ -27,6 +27,8 @@ interface Employee {
   first_name: string;
   last_name: string;
   weekly_hours: number | null;
+  cost_center?: string;
+  position?: string;
 }
 
 const FREE_CODES = ['X', 'V', 'K']; // Frei, Ferien, Krank – not real work shifts

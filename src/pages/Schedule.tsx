@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle } from 'lucide-react';
 import { validateSchedule, LgavViolation } from '@/lib/lgav-schedule-validation';
@@ -22,6 +23,8 @@ interface Employee {
   first_name: string;
   last_name: string;
   weekly_hours: number | null;
+  cost_center: string;
+  position: string;
 }
 
 interface Assignment {
@@ -31,7 +34,34 @@ interface Assignment {
   shift_type_id: string;
 }
 
+interface ScheduleEvent {
+  id: string;
+  date: string;
+  label: string;
+}
+
 const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+
+// Position hierarchy for sorting (lower = higher rank)
+const POSITION_HIERARCHY: Record<string, number> = {
+  'Geschäftsführer': 1, 'Direktor': 2, 'Betriebsleiter': 3,
+  'Küchenchef': 10, 'Sous-Chef': 11, 'Chef de Partie': 12, 'Demichef': 13, 'Commis': 14, 'Koch': 15, 'Hilfskoch': 16,
+  'Restaurantleiter': 20, 'Chef de Service': 21, 'Serviceleiter': 22, 'Servicefachangestellte': 23, 'Servicemitarbeiter': 24,
+  'Barkeeper': 30, 'Rezeptionist': 31, 'Hausdame': 32, 'Zimmermädchen': 33,
+  'Lehrling': 90, 'Aushilfe': 91, 'Praktikant': 92,
+};
+
+function getPositionOrder(position: string): number {
+  const normalized = position.trim();
+  if (POSITION_HIERARCHY[normalized] !== undefined) return POSITION_HIERARCHY[normalized];
+  // Try partial match
+  for (const [key, val] of Object.entries(POSITION_HIERARCHY)) {
+    if (normalized.toLowerCase().includes(key.toLowerCase())) return val;
+  }
+  return 50; // default mid-rank
+}
+
+type DragData = { type: 'palette'; shiftId: string } | { type: 'cell'; assignmentId: string; shiftId: string; employeeId: string; day: number };
 
 export default function Schedule() {
   const [year, setYear] = useState(new Date().getFullYear());
@@ -39,8 +69,10 @@ export default function Schedule() {
   const [shiftTypes, setShiftTypes] = useState<ShiftType[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [draggedShift, setDraggedShift] = useState<string | null>(null);
+  const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [showViolations, setShowViolations] = useState(true);
+  const [editingEventDay, setEditingEventDay] = useState<number | null>(null);
+  const [eventText, setEventText] = useState('');
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
@@ -49,15 +81,24 @@ export default function Schedule() {
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
     const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
 
-    const [shiftsRes, empRes, assignRes] = await Promise.all([
+    const [shiftsRes, empRes, assignRes, eventsRes] = await Promise.all([
       supabase.from('shift_types').select('*').order('sort_order'),
-      supabase.from('employees').select('id, first_name, last_name, weekly_hours').eq('is_active', true).order('last_name'),
+      supabase.from('employees').select('id, first_name, last_name, weekly_hours, cost_center, position').eq('is_active', true),
       supabase.from('schedule_assignments').select('*').gte('date', startDate).lte('date', endDate),
+      supabase.from('schedule_events').select('*').gte('date', startDate).lte('date', endDate),
     ]);
 
+    // Sort employees by cost_center then position hierarchy
+    const sorted = (empRes.data || []).sort((a, b) => {
+      const ccCompare = (a.cost_center || '').localeCompare(b.cost_center || '');
+      if (ccCompare !== 0) return ccCompare;
+      return getPositionOrder(a.position || '') - getPositionOrder(b.position || '');
+    });
+
     setShiftTypes(shiftsRes.data || []);
-    setEmployees(empRes.data || []);
+    setEmployees(sorted);
     setAssignments(assignRes.data || []);
+    setEvents(eventsRes.data || []);
   }, [year, month, daysInMonth]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -68,13 +109,10 @@ export default function Schedule() {
     return validateSchedule(assignments, employees, shiftTypes, year, month);
   }, [assignments, employees, shiftTypes, year, month]);
 
-  // Track which cells have violations for highlighting
   const violationCells = useMemo(() => {
     const cells = new Set<string>();
     for (const v of violations) {
-      for (const d of v.days) {
-        cells.add(`${v.employeeId}-${d}`);
-      }
+      for (const d of v.days) cells.add(`${v.employeeId}-${d}`);
     }
     return cells;
   }, [violations]);
@@ -86,41 +124,100 @@ export default function Schedule() {
 
   const getShiftById = (id: string) => shiftTypes.find(s => s.id === id);
 
-  const handleDragStart = (e: DragEvent, shiftId: string) => {
-    e.dataTransfer.setData('shiftId', shiftId);
-    setDraggedShift(shiftId);
+  const getEvent = (day: number) => {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return events.find(e => e.date === dateStr);
+  };
+
+  // Drag handlers supporting both palette and cell-to-cell
+  const handlePaletteDragStart = (e: DragEvent, shiftId: string) => {
+    e.dataTransfer.setData('application/json', JSON.stringify({ type: 'palette', shiftId }));
+    e.dataTransfer.effectAllowed = 'copyMove';
+  };
+
+  const handleCellDragStart = (e: DragEvent, assignment: Assignment) => {
+    const data: DragData = {
+      type: 'cell',
+      assignmentId: assignment.id,
+      shiftId: assignment.shift_type_id,
+      employeeId: assignment.employee_id,
+      day: parseInt(assignment.date.split('-')[2]),
+    };
+    e.dataTransfer.setData('application/json', JSON.stringify(data));
+    e.dataTransfer.effectAllowed = 'copyMove';
   };
 
   const handleDragOver = (e: DragEvent) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
+    e.dataTransfer.dropEffect = 'move';
   };
 
   const handleDrop = async (e: DragEvent, employeeId: string, day: number) => {
     e.preventDefault();
-    const shiftId = e.dataTransfer.getData('shiftId');
-    if (!shiftId) return;
+    let data: DragData;
+    try {
+      data = JSON.parse(e.dataTransfer.getData('application/json'));
+    } catch {
+      return;
+    }
 
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const existing = getAssignment(employeeId, day);
 
-    if (existing) {
-      const { error } = await supabase.from('schedule_assignments')
-        .update({ shift_type_id: shiftId })
-        .eq('id', existing.id);
-      if (error) { toast.error('Fehler'); return; }
+    if (data.type === 'cell') {
+      // Moving from another cell
+      // If dropping on same cell, do nothing
+      if (data.employeeId === employeeId && data.day === day) return;
+
+      // Delete old assignment
+      await supabase.from('schedule_assignments').delete().eq('id', data.assignmentId);
+
+      // Upsert new
+      if (existing) {
+        await supabase.from('schedule_assignments')
+          .update({ shift_type_id: data.shiftId })
+          .eq('id', existing.id);
+      } else {
+        await supabase.from('schedule_assignments')
+          .insert({ employee_id: employeeId, date: dateStr, shift_type_id: data.shiftId });
+      }
     } else {
-      const { error } = await supabase.from('schedule_assignments')
-        .insert({ employee_id: employeeId, date: dateStr, shift_type_id: shiftId });
-      if (error) { toast.error('Fehler'); return; }
+      // From palette
+      if (existing) {
+        await supabase.from('schedule_assignments')
+          .update({ shift_type_id: data.shiftId })
+          .eq('id', existing.id);
+      } else {
+        await supabase.from('schedule_assignments')
+          .insert({ employee_id: employeeId, date: dateStr, shift_type_id: data.shiftId });
+      }
     }
 
-    setDraggedShift(null);
     loadData();
   };
 
   const removeAssignment = async (assignmentId: string) => {
     await supabase.from('schedule_assignments').delete().eq('id', assignmentId);
+    loadData();
+  };
+
+  // Event handling
+  const saveEvent = async (day: number) => {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const existing = getEvent(day);
+
+    if (!eventText.trim()) {
+      if (existing) {
+        await supabase.from('schedule_events').delete().eq('id', existing.id);
+      }
+    } else if (existing) {
+      await supabase.from('schedule_events').update({ label: eventText.trim() }).eq('id', existing.id);
+    } else {
+      await supabase.from('schedule_events').insert({ date: dateStr, label: eventText.trim() });
+    }
+
+    setEditingEventDay(null);
+    setEventText('');
     loadData();
   };
 
@@ -145,18 +242,29 @@ export default function Schedule() {
   };
 
   const violationTypeLabels: Record<string, string> = {
-    rest_time: 'Ruhezeit',
-    weekly_rest: 'Ruhetag',
-    weekly_hours: 'Wochenstunden',
-    consecutive_days: 'Arbeitstage',
+    rest_time: 'Ruhezeit', weekly_rest: 'Ruhetag', weekly_hours: 'Wochenstunden', consecutive_days: 'Arbeitstage',
+  };
+  const violationTypeColors: Record<string, string> = {
+    rest_time: 'text-destructive', weekly_rest: 'text-warning', weekly_hours: 'text-warning', consecutive_days: 'text-destructive',
   };
 
-  const violationTypeColors: Record<string, string> = {
-    rest_time: 'text-destructive',
-    weekly_rest: 'text-warning',
-    weekly_hours: 'text-warning',
-    consecutive_days: 'text-destructive',
-  };
+  // Group employees by cost center for display
+  const costCenterGroups = useMemo(() => {
+    const groups: { costCenter: string; employees: Employee[] }[] = [];
+    let current = '';
+    let currentGroup: Employee[] = [];
+    for (const emp of employees) {
+      const cc = emp.cost_center || '';
+      if (cc !== current) {
+        if (currentGroup.length > 0) groups.push({ costCenter: current, employees: currentGroup });
+        current = cc;
+        currentGroup = [];
+      }
+      currentGroup.push(emp);
+    }
+    if (currentGroup.length > 0) groups.push({ costCenter: current, employees: currentGroup });
+    return groups;
+  }, [employees]);
 
   return (
     <div className="space-y-4 pb-20 md:pb-4">
@@ -195,11 +303,7 @@ export default function Schedule() {
         </CardHeader>
         <AnimatePresence>
           {showViolations && violations.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-            >
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
               <CardContent className="pt-0 pb-3">
                 <div className="space-y-1.5 max-h-48 overflow-y-auto">
                   {violations.map((v, i) => (
@@ -219,7 +323,7 @@ export default function Schedule() {
         </AnimatePresence>
       </Card>
 
-      {/* Shift palette for drag */}
+      {/* Shift palette */}
       <Card>
         <CardHeader className="py-3">
           <CardTitle className="text-sm">Dienste (ziehen & ablegen)</CardTitle>
@@ -229,7 +333,7 @@ export default function Schedule() {
             <div
               key={shift.id}
               draggable
-              onDragStart={e => handleDragStart(e, shift.id)}
+              onDragStart={e => handlePaletteDragStart(e, shift.id)}
               className="flex cursor-grab items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-shadow hover:shadow-md active:cursor-grabbing"
               style={{ borderColor: shift.color, backgroundColor: shift.color + '15' }}
             >
@@ -248,56 +352,99 @@ export default function Schedule() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b">
-                  <th className="sticky left-0 z-10 min-w-[120px] bg-card px-3 py-2 text-left font-medium text-muted-foreground">
+                  <th className="sticky left-0 z-10 min-w-[140px] bg-card px-3 py-2 text-left font-medium text-muted-foreground">
                     Mitarbeiter
                   </th>
                   {days.map(day => (
-                    <th
-                      key={day}
-                      className={`min-w-[40px] px-1 py-2 text-center font-medium ${isWeekend(day) ? 'bg-muted/50 text-muted-foreground' : ''}`}
-                    >
+                    <th key={day} className={`min-w-[40px] px-1 py-2 text-center font-medium ${isWeekend(day) ? 'bg-muted/50 text-muted-foreground' : ''}`}>
                       <div className="text-[10px] text-muted-foreground">{getDayOfWeek(day)}</div>
                       <div>{day}</div>
                     </th>
                   ))}
                 </tr>
+                {/* Events row */}
+                <tr className="border-b bg-accent/10">
+                  <th className="sticky left-0 z-10 bg-accent/10 px-3 py-1 text-left text-[10px] font-medium text-accent-foreground">
+                    Anlass
+                  </th>
+                  {days.map(day => {
+                    const ev = getEvent(day);
+                    return (
+                      <td key={day} className="px-0.5 py-1 text-center min-w-[40px]">
+                        {editingEventDay === day ? (
+                          <Input
+                            className="h-5 w-full min-w-[36px] text-[9px] px-1 py-0"
+                            value={eventText}
+                            onChange={e => setEventText(e.target.value)}
+                            onBlur={() => saveEvent(day)}
+                            onKeyDown={e => { if (e.key === 'Enter') saveEvent(day); if (e.key === 'Escape') { setEditingEventDay(null); setEventText(''); } }}
+                            autoFocus
+                          />
+                        ) : (
+                          <div
+                            className="mx-auto min-h-[18px] cursor-pointer rounded px-0.5 text-[9px] leading-tight text-accent-foreground hover:bg-accent/30 truncate max-w-[38px]"
+                            title={ev?.label || 'Klicken zum Eintragen'}
+                            onClick={() => { setEditingEventDay(day); setEventText(ev?.label || ''); }}
+                          >
+                            {ev?.label || ''}
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
               </thead>
               <tbody>
-                {employees.map(emp => (
-                  <tr key={emp.id} className="border-b last:border-0 hover:bg-muted/30">
-                    <td className="sticky left-0 z-10 bg-card px-3 py-2 font-medium whitespace-nowrap">
-                      {emp.first_name} {emp.last_name}
-                    </td>
-                    {days.map(day => {
-                      const assignment = getAssignment(emp.id, day);
-                      const shift = assignment ? getShiftById(assignment.shift_type_id) : null;
-                      const hasViolation = violationCells.has(`${emp.id}-${day}`);
-                      return (
-                        <td
-                          key={day}
-                          className={`px-0.5 py-1 text-center ${isWeekend(day) ? 'bg-muted/30' : ''} ${hasViolation ? 'bg-destructive/10' : ''}`}
-                          onDragOver={handleDragOver}
-                          onDrop={e => handleDrop(e, emp.id, day)}
-                        >
-                          {shift ? (
-                            <div
-                              className={`group relative mx-auto flex h-7 w-8 items-center justify-center rounded text-[10px] font-bold text-white cursor-pointer ${hasViolation ? 'ring-2 ring-destructive ring-offset-1' : ''}`}
-                              style={{ backgroundColor: shift.color }}
-                              title={`${shift.name}${shift.start_time ? ` (${shift.start_time.slice(0,5)}–${shift.end_time?.slice(0,5)})` : ''}${hasViolation ? ' ⚠️ L-GAV Verstoss' : ''}`}
-                              onClick={() => removeAssignment(assignment!.id)}
-                            >
-                              {shift.short_code}
-                              <div className="absolute -right-1 -top-1 hidden h-3 w-3 items-center justify-center rounded-full bg-destructive text-[8px] text-destructive-foreground group-hover:flex">
-                                ×
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="mx-auto h-7 w-8 rounded border border-dashed border-border/50" />
-                          )}
+                {costCenterGroups.map(group => (
+                  <>
+                    {/* Cost center separator */}
+                    <tr key={`cc-${group.costCenter}`} className="bg-muted/40">
+                      <td colSpan={daysInMonth + 1} className="sticky left-0 px-3 py-1 text-[10px] font-heading font-semibold uppercase tracking-wider text-muted-foreground">
+                        {group.costCenter || 'Ohne Kostenstelle'}
+                      </td>
+                    </tr>
+                    {group.employees.map(emp => (
+                      <tr key={emp.id} className="border-b last:border-0 hover:bg-muted/30">
+                        <td className="sticky left-0 z-10 bg-card px-3 py-2 whitespace-nowrap">
+                          <div className="font-medium text-xs">{emp.first_name} {emp.last_name}</div>
+                          <div className="text-[10px] text-muted-foreground">{emp.position}</div>
                         </td>
-                      );
-                    })}
-                  </tr>
+                        {days.map(day => {
+                          const assignment = getAssignment(emp.id, day);
+                          const shift = assignment ? getShiftById(assignment.shift_type_id) : null;
+                          const hasViolation = violationCells.has(`${emp.id}-${day}`);
+                          return (
+                            <td
+                              key={day}
+                              className={`px-0.5 py-1 text-center ${isWeekend(day) ? 'bg-muted/30' : ''} ${hasViolation ? 'bg-destructive/10' : ''}`}
+                              onDragOver={handleDragOver}
+                              onDrop={e => handleDrop(e, emp.id, day)}
+                            >
+                              {shift ? (
+                                <div
+                                  draggable
+                                  onDragStart={e => handleCellDragStart(e, assignment!)}
+                                  className={`group relative mx-auto flex h-7 w-8 items-center justify-center rounded text-[10px] font-bold text-white cursor-grab active:cursor-grabbing ${hasViolation ? 'ring-2 ring-destructive ring-offset-1' : ''}`}
+                                  style={{ backgroundColor: shift.color }}
+                                  title={`${shift.name}${shift.start_time ? ` (${shift.start_time.slice(0,5)}–${shift.end_time?.slice(0,5)})` : ''}${hasViolation ? ' ⚠️ L-GAV Verstoss' : ''}`}
+                                >
+                                  {shift.short_code}
+                                  <div
+                                    className="absolute -right-1 -top-1 hidden h-3 w-3 items-center justify-center rounded-full bg-destructive text-[8px] text-destructive-foreground group-hover:flex"
+                                    onClick={(e) => { e.stopPropagation(); removeAssignment(assignment!.id); }}
+                                  >
+                                    ×
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="mx-auto h-7 w-8 rounded border border-dashed border-border/50" />
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </>
                 ))}
                 {employees.length === 0 && (
                   <tr>
