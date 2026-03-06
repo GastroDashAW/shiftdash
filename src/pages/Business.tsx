@@ -19,6 +19,9 @@ const ALL_DAYS = [
   { key: 6, label: 'Samstag', short: 'Sa' },
 ];
 
+type DayHours = { open: string; close: string };
+type DayHoursMap = Record<number, DayHours>;
+
 interface BusinessData {
   id?: string;
   name: string;
@@ -32,15 +35,27 @@ interface BusinessData {
   social_charges_percent: number;
   closed_days: number[];
   auto_sync_schedule: boolean;
+  day_opening_hours: DayHoursMap;
 }
+
+const defaultDayHours: DayHoursMap = {
+  0: { open: '', close: '' },
+  1: { open: '11:00', close: '23:00' },
+  2: { open: '11:00', close: '23:00' },
+  3: { open: '11:00', close: '23:00' },
+  4: { open: '11:00', close: '23:00' },
+  5: { open: '11:00', close: '23:00' },
+  6: { open: '11:00', close: '23:00' },
+};
 
 const empty: BusinessData = {
   name: '', address: '', phone: '', url: '',
   contact_person: '', vat_number: '',
   opening_days: '', opening_hours: '',
   social_charges_percent: 15,
-  closed_days: [],
+  closed_days: [0],
   auto_sync_schedule: false,
+  day_opening_hours: defaultDayHours,
 };
 
 export default function Business() {
@@ -52,17 +67,35 @@ export default function Business() {
       .then(({ data: row }) => {
         if (row) {
           const closed = Array.isArray(row.closed_days) ? (row.closed_days as number[]) : [];
-          setData({ ...(row as any), closed_days: closed, auto_sync_schedule: row.auto_sync_schedule ?? false });
+          // Parse day_opening_hours from opening_hours field (JSON string) or fallback
+          let dayHours = defaultDayHours;
+          try {
+            const parsed = JSON.parse(row.opening_hours || '{}');
+            if (typeof parsed === 'object' && !Array.isArray(parsed) && parsed['1']) {
+              dayHours = { ...defaultDayHours, ...parsed };
+            }
+          } catch { /* keep defaults */ }
+          setData({
+            ...(row as any),
+            closed_days: closed,
+            auto_sync_schedule: row.auto_sync_schedule ?? false,
+            day_opening_hours: dayHours,
+          });
         }
       });
   }, []);
 
   const handleSave = async () => {
     setSaving(true);
-    const { id, ...payload } = data;
+    const { id, day_opening_hours, ...payload } = data;
     // Build opening_days string from closed_days
     const openDays = ALL_DAYS.filter(d => !data.closed_days.includes(d.key)).map(d => d.short);
-    const finalPayload = { ...payload, opening_days: openDays.join(', ') };
+    // Store day_opening_hours as JSON in opening_hours field
+    const finalPayload = {
+      ...payload,
+      opening_days: openDays.join(', '),
+      opening_hours: JSON.stringify(day_opening_hours),
+    };
 
     if (id) {
       await supabase.from('business_settings').update(finalPayload).eq('id', id);
@@ -84,6 +117,16 @@ export default function Business() {
         : [...prev.closed_days, dayKey];
       return { ...prev, closed_days: closed };
     });
+  };
+
+  const updateDayHours = (dayKey: number, field: 'open' | 'close', value: string) => {
+    setData(prev => ({
+      ...prev,
+      day_opening_hours: {
+        ...prev.day_opening_hours,
+        [dayKey]: { ...prev.day_opening_hours[dayKey], [field]: value },
+      },
+    }));
   };
 
   return (
@@ -137,34 +180,50 @@ export default function Business() {
           <CardTitle className="text-base">Öffnungszeiten & Ruhetage</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Öffnungszeiten</Label>
-            <Input value={data.opening_hours} onChange={e => update('opening_hours', e.target.value)} placeholder="11:00–23:00" />
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Definiere pro Wochentag die Öffnungszeiten. Geschlossene Tage abhaken.
+          </p>
 
           <div className="space-y-2">
-            <Label>Ruhetage (geschlossen)</Label>
-            <p className="text-xs text-muted-foreground">Wähle die Tage, an denen der Betrieb geschlossen ist</p>
-            <div className="grid grid-cols-7 gap-2">
-              {ALL_DAYS.map(day => (
+            {ALL_DAYS.map(day => {
+              const isClosed = data.closed_days.includes(day.key);
+              const hours = data.day_opening_hours[day.key] || { open: '', close: '' };
+              return (
                 <div
                   key={day.key}
-                  className={`flex flex-col items-center gap-1 rounded-lg border p-2 cursor-pointer transition-colors ${
-                    data.closed_days.includes(day.key) ? 'bg-destructive/10 border-destructive/50' : 'hover:bg-muted'
+                  className={`flex items-center gap-3 rounded-lg border p-3 transition-colors ${
+                    isClosed ? 'bg-destructive/5 border-destructive/30' : 'bg-card'
                   }`}
-                  onClick={() => toggleClosedDay(day.key)}
                 >
                   <Checkbox
-                    checked={data.closed_days.includes(day.key)}
+                    checked={isClosed}
                     onCheckedChange={() => toggleClosedDay(day.key)}
                   />
-                  <span className="text-xs font-medium">{day.short}</span>
+                  <span className={`w-10 text-sm font-semibold ${isClosed ? 'text-destructive line-through' : ''}`}>
+                    {day.short}
+                  </span>
+                  {isClosed ? (
+                    <span className="text-sm text-destructive italic">Geschlossen</span>
+                  ) : (
+                    <div className="flex items-center gap-2 flex-1">
+                      <Input
+                        type="time"
+                        className="h-8 w-28 text-sm"
+                        value={hours.open}
+                        onChange={e => updateDayHours(day.key, 'open', e.target.value)}
+                      />
+                      <span className="text-muted-foreground text-sm">–</span>
+                      <Input
+                        type="time"
+                        className="h-8 w-28 text-sm"
+                        value={hours.close}
+                        onChange={e => updateDayHours(day.key, 'close', e.target.value)}
+                      />
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Öffnungstage: {ALL_DAYS.filter(d => !data.closed_days.includes(d.key)).map(d => d.short).join(', ') || '–'}
-            </p>
+              );
+            })}
           </div>
 
           <div className="rounded-lg border p-4 space-y-2 bg-muted/30">
@@ -180,8 +239,8 @@ export default function Business() {
                   Ruhetage automatisch im Dienstplan als «Frei» setzen
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Wenn aktiviert, werden an den Ruhetagen automatisch alle Mitarbeiter auf «Frei» gesetzt,
-                  sobald der Dienstplan geladen wird. Bestehende Zuweisungen an Ruhetagen werden nicht überschrieben.
+                  Wenn aktiviert, werden an den Ruhetagen automatisch alle Mitarbeiter auf «Frei» gesetzt.
+                  Bestehende Zuweisungen werden nicht überschrieben.
                 </p>
               </div>
             </div>
