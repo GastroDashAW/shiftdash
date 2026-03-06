@@ -226,7 +226,7 @@ export default function Business() {
                   {isClosed ? (
                     <span className="text-sm text-destructive italic">Geschlossen</span>
                   ) : (
-                    <div className="flex items-center gap-2 flex-1">
+                    <div className="flex items-center gap-2 flex-1 flex-wrap">
                       <Input
                         type="time"
                         className="h-8 w-28 text-sm"
@@ -240,6 +240,16 @@ export default function Business() {
                         value={hours.close}
                         onChange={e => updateDayHours(day.key, 'close', e.target.value)}
                       />
+                      <div className="flex items-center gap-1.5 ml-auto">
+                        <Input
+                          type="number"
+                          className="h-8 w-16 text-sm text-center"
+                          min={0}
+                          value={data.shifts_per_day[day.key] ?? 0}
+                          onChange={e => updateShiftsForDay(day.key, parseInt(e.target.value) || 0)}
+                        />
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">Dienste</span>
+                      </div>
                     </div>
                   )}
                 </div>
