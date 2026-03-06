@@ -97,7 +97,8 @@ export function ShiftPlanConfig({ shifts }: { shifts: ShiftType[] }) {
   };
 
   // Filter to only show shifts with times (actual work shifts, not Frei/Ferien)
-  const workShifts = shifts.filter(s => s.short_code !== 'X' && s.short_code !== 'V');
+  const excludedCodes = ['X', 'V', 'K', 'U'];
+  const workShifts = shifts.filter(s => !excludedCodes.includes(s.short_code));
   const visibleDays = ALL_DAYS.filter(d => openDays.includes(d.key));
 
   // Compute column totals
