@@ -5,8 +5,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { Building2, Save } from 'lucide-react';
+import { Building2, Save, CalendarOff } from 'lucide-react';
+
+const ALL_DAYS = [
+  { key: 0, label: 'Sonntag', short: 'So' },
+  { key: 1, label: 'Montag', short: 'Mo' },
+  { key: 2, label: 'Dienstag', short: 'Di' },
+  { key: 3, label: 'Mittwoch', short: 'Mi' },
+  { key: 4, label: 'Donnerstag', short: 'Do' },
+  { key: 5, label: 'Freitag', short: 'Fr' },
+  { key: 6, label: 'Samstag', short: 'Sa' },
+];
 
 interface BusinessData {
   id?: string;
@@ -19,6 +30,8 @@ interface BusinessData {
   opening_days: string;
   opening_hours: string;
   social_charges_percent: number;
+  closed_days: number[];
+  auto_sync_schedule: boolean;
 }
 
 const empty: BusinessData = {
@@ -26,6 +39,8 @@ const empty: BusinessData = {
   contact_person: '', vat_number: '',
   opening_days: '', opening_hours: '',
   social_charges_percent: 15,
+  closed_days: [],
+  auto_sync_schedule: false,
 };
 
 export default function Business() {
@@ -35,25 +50,41 @@ export default function Business() {
   useEffect(() => {
     supabase.from('business_settings').select('*').limit(1).maybeSingle()
       .then(({ data: row }) => {
-        if (row) setData(row as any);
+        if (row) {
+          const closed = Array.isArray(row.closed_days) ? (row.closed_days as number[]) : [];
+          setData({ ...(row as any), closed_days: closed, auto_sync_schedule: row.auto_sync_schedule ?? false });
+        }
       });
   }, []);
 
   const handleSave = async () => {
     setSaving(true);
     const { id, ...payload } = data;
+    // Build opening_days string from closed_days
+    const openDays = ALL_DAYS.filter(d => !data.closed_days.includes(d.key)).map(d => d.short);
+    const finalPayload = { ...payload, opening_days: openDays.join(', ') };
+
     if (id) {
-      await supabase.from('business_settings').update(payload).eq('id', id);
+      await supabase.from('business_settings').update(finalPayload).eq('id', id);
     } else {
-      const { data: created } = await supabase.from('business_settings').insert(payload).select().single();
+      const { data: created } = await supabase.from('business_settings').insert(finalPayload).select().single();
       if (created) setData(prev => ({ ...prev, id: created.id }));
     }
     setSaving(false);
     toast.success('Betriebsdaten gespeichert');
   };
 
-  const update = (field: keyof BusinessData, value: string | number) =>
+  const update = (field: keyof BusinessData, value: any) =>
     setData(prev => ({ ...prev, [field]: value }));
+
+  const toggleClosedDay = (dayKey: number) => {
+    setData(prev => {
+      const closed = prev.closed_days.includes(dayKey)
+        ? prev.closed_days.filter(d => d !== dayKey)
+        : [...prev.closed_days, dayKey];
+      return { ...prev, closed_days: closed };
+    });
+  };
 
   return (
     <div className="space-y-6 pb-20 md:pb-4">
@@ -103,16 +134,57 @@ export default function Business() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Öffnungszeiten</CardTitle>
+          <CardTitle className="text-base">Öffnungszeiten & Ruhetage</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Öffnungstage</Label>
-            <Input value={data.opening_days} onChange={e => update('opening_days', e.target.value)} placeholder="Mo–Sa" />
-          </div>
-          <div className="space-y-2">
             <Label>Öffnungszeiten</Label>
             <Input value={data.opening_hours} onChange={e => update('opening_hours', e.target.value)} placeholder="11:00–23:00" />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Ruhetage (geschlossen)</Label>
+            <p className="text-xs text-muted-foreground">Wähle die Tage, an denen der Betrieb geschlossen ist</p>
+            <div className="grid grid-cols-7 gap-2">
+              {ALL_DAYS.map(day => (
+                <div
+                  key={day.key}
+                  className={`flex flex-col items-center gap-1 rounded-lg border p-2 cursor-pointer transition-colors ${
+                    data.closed_days.includes(day.key) ? 'bg-destructive/10 border-destructive/50' : 'hover:bg-muted'
+                  }`}
+                  onClick={() => toggleClosedDay(day.key)}
+                >
+                  <Checkbox
+                    checked={data.closed_days.includes(day.key)}
+                    onCheckedChange={() => toggleClosedDay(day.key)}
+                  />
+                  <span className="text-xs font-medium">{day.short}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Öffnungstage: {ALL_DAYS.filter(d => !data.closed_days.includes(d.key)).map(d => d.short).join(', ') || '–'}
+            </p>
+          </div>
+
+          <div className="rounded-lg border p-4 space-y-2 bg-muted/30">
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="auto-sync"
+                checked={data.auto_sync_schedule}
+                onCheckedChange={(checked) => update('auto_sync_schedule', !!checked)}
+              />
+              <div className="space-y-1">
+                <Label htmlFor="auto-sync" className="text-sm font-medium flex items-center gap-2 cursor-pointer">
+                  <CalendarOff className="h-4 w-4 text-muted-foreground" />
+                  Ruhetage automatisch im Dienstplan als «Frei» setzen
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Wenn aktiviert, werden an den Ruhetagen automatisch alle Mitarbeiter auf «Frei» gesetzt,
+                  sobald der Dienstplan geladen wird. Bestehende Zuweisungen an Ruhetagen werden nicht überschrieben.
+                </p>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
