@@ -21,6 +21,7 @@ const ALL_DAYS = [
 
 type DayHours = { open: string; close: string };
 type DayHoursMap = Record<number, DayHours>;
+type ShiftsPerDay = Record<number, number>;
 
 interface BusinessData {
   id?: string;
