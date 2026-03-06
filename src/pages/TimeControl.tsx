@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { formatHoursMinutes, formatTime, calculateEffectiveHours } from '@/lib/lgav';
-import { ClipboardCheck, Check, CheckCheck, Pencil, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { ClipboardCheck, Check, CheckCheck, Pencil, ChevronLeft, ChevronRight, AlertTriangle, CalendarClock } from 'lucide-react';
 
 interface TimeEntry {
   id: string;
@@ -34,19 +34,27 @@ interface Employee {
   last_name: string;
 }
 
+interface ShiftInfo {
+  name: string;
+  short_code: string;
+  start_time: string | null;
+  end_time: string | null;
+  color: string;
+}
+
 export default function TimeControl() {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [entries, setEntries] = useState<TimeEntry[]>([]);
+  const [shifts, setShifts] = useState<Record<string, ShiftInfo>>({});
   const [editEntry, setEditEntry] = useState<TimeEntry | null>(null);
-  const [editClockIn, setEditClockIn] = useState('');
-  const [editClockOut, setEditClockOut] = useState('');
+  const [editAdjClockIn, setEditAdjClockIn] = useState('');
+  const [editAdjClockOut, setEditAdjClockOut] = useState('');
   const [editBreak, setEditBreak] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Load employees once
   useEffect(() => {
     supabase.from('employees').select('id, first_name, last_name').eq('is_active', true)
       .order('last_name')
@@ -55,12 +63,34 @@ export default function TimeControl() {
 
   const loadEntries = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('time_entries')
-      .select('*')
-      .eq('date', selectedDate)
-      .order('employee_id');
-    setEntries((data as TimeEntry[]) || []);
+    const [entriesRes, assignmentsRes] = await Promise.all([
+      supabase
+        .from('time_entries')
+        .select('*')
+        .eq('date', selectedDate)
+        .order('employee_id'),
+      supabase
+        .from('schedule_assignments')
+        .select('employee_id, shift_types(name, short_code, start_time, end_time, color)')
+        .eq('date', selectedDate),
+    ]);
+
+    setEntries((entriesRes.data as TimeEntry[]) || []);
+
+    // Build shift lookup by employee_id
+    const shiftMap: Record<string, ShiftInfo> = {};
+    (assignmentsRes.data || []).forEach((a: any) => {
+      if (a.shift_types) {
+        shiftMap[a.employee_id] = {
+          name: a.shift_types.name,
+          short_code: a.shift_types.short_code,
+          start_time: a.shift_types.start_time ? a.shift_types.start_time.substring(0, 5) : null,
+          end_time: a.shift_types.end_time ? a.shift_types.end_time.substring(0, 5) : null,
+          color: a.shift_types.color,
+        };
+      }
+    });
+    setShifts(shiftMap);
     setLoading(false);
   }, [selectedDate]);
 
@@ -74,47 +104,74 @@ export default function TimeControl() {
 
   const openEdit = (entry: TimeEntry) => {
     setEditEntry(entry);
-    // Extract HH:MM from ISO timestamps
-    setEditClockIn(entry.clock_in ? new Date(entry.clock_in).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }) : '');
-    setEditClockOut(entry.clock_out ? new Date(entry.clock_out).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }) : '');
+    const shift = shifts[entry.employee_id];
+
+    // Show adjusted times if set, otherwise suggest shift times
+    if (entry.adjusted_clock_in) {
+      setEditAdjClockIn(new Date(entry.adjusted_clock_in).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }));
+    } else if (shift?.start_time) {
+      setEditAdjClockIn(shift.start_time);
+    } else if (entry.clock_in) {
+      setEditAdjClockIn(new Date(entry.clock_in).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }));
+    } else {
+      setEditAdjClockIn('');
+    }
+
+    if (entry.adjusted_clock_out) {
+      setEditAdjClockOut(new Date(entry.adjusted_clock_out).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }));
+    } else if (shift?.end_time) {
+      setEditAdjClockOut(shift.end_time);
+    } else if (entry.clock_out) {
+      setEditAdjClockOut(new Date(entry.clock_out).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }));
+    } else {
+      setEditAdjClockOut('');
+    }
+
     setEditBreak(String(entry.break_minutes || 0));
     setEditNotes(entry.notes || '');
+  };
+
+  const applyShiftTimes = () => {
+    if (!editEntry) return;
+    const shift = shifts[editEntry.employee_id];
+    if (shift?.start_time) setEditAdjClockIn(shift.start_time);
+    if (shift?.end_time) setEditAdjClockOut(shift.end_time);
   };
 
   const saveEdit = async () => {
     if (!editEntry) return;
 
-    // Build updated timestamps from HH:MM input
     const dateStr = editEntry.date;
-    let clockIn: string | null = editEntry.clock_in;
-    let clockOut: string | null = editEntry.clock_out;
+    let adjClockIn: string | null = null;
+    let adjClockOut: string | null = null;
 
-    if (editClockIn) {
-      const [h, m] = editClockIn.split(':').map(Number);
+    if (editAdjClockIn) {
+      const [h, m] = editAdjClockIn.split(':').map(Number);
       const d = new Date(`${dateStr}T00:00:00`);
       d.setHours(h, m, 0, 0);
-      clockIn = d.toISOString();
+      adjClockIn = d.toISOString();
     }
-    if (editClockOut) {
-      const [h, m] = editClockOut.split(':').map(Number);
+    if (editAdjClockOut) {
+      const [h, m] = editAdjClockOut.split(':').map(Number);
       const d = new Date(`${dateStr}T00:00:00`);
       d.setHours(h, m, 0, 0);
-      clockOut = d.toISOString();
+      adjClockOut = d.toISOString();
     }
 
     const breaks = parseInt(editBreak) || 0;
-    const effective = clockIn && clockOut ? calculateEffectiveHours(clockIn, clockOut, breaks) : 0;
+    // Effective hours based on adjusted times (override)
+    const effectiveStart = adjClockIn || editEntry.clock_in;
+    const effectiveEnd = adjClockOut || editEntry.clock_out;
+    const effective = effectiveStart && effectiveEnd ? calculateEffectiveHours(effectiveStart, effectiveEnd, breaks) : 0;
 
     const { error } = await supabase
       .from('time_entries')
       .update({
-        clock_in: clockIn,
-        clock_out: clockOut,
+        adjusted_clock_in: adjClockIn,
+        adjusted_clock_out: adjClockOut,
         break_minutes: breaks,
         effective_hours: effective,
         notes: editNotes || null,
-        adjusted_clock_in: null,
-        adjusted_clock_out: null,
         requires_overtime_approval: false,
       })
       .eq('id', editEntry.id);
@@ -138,16 +195,15 @@ export default function TimeControl() {
   const approveAll = async () => {
     const pendingIds = entries.filter(e => e.status === 'pending').map(e => e.id);
     if (pendingIds.length === 0) return;
-
     await supabase.from('time_entries').update({ status: 'approved' }).in('id', pendingIds);
     setEntries(prev => prev.map(e => pendingIds.includes(e.id) ? { ...e, status: 'approved' } : e));
     toast.success(`${pendingIds.length} Einträge freigegeben`);
   };
 
-  // Group entries by employee
   const grouped = employees.map(emp => ({
     employee: emp,
     entries: entries.filter(e => e.employee_id === emp.id),
+    shift: shifts[emp.id] || null,
   })).filter(g => g.entries.length > 0);
 
   const pendingCount = entries.filter(e => e.status === 'pending').length;
@@ -161,6 +217,53 @@ export default function TimeControl() {
     vacation: 'Ferien', sick: 'Krankheit', accident: 'Unfall',
     holiday: 'Feiertag', military: 'Militär', other: 'Andere',
   };
+
+  // Helper: display time for an entry (original + adjusted)
+  const renderEntryTimes = (entry: TimeEntry) => {
+    const origIn = entry.clock_in ? formatTime(entry.clock_in) : '–';
+    const origOut = entry.clock_out ? formatTime(entry.clock_out) : '...';
+    const hasAdjIn = !!entry.adjusted_clock_in;
+    const hasAdjOut = !!entry.adjusted_clock_out;
+    const adjIn = hasAdjIn ? formatTime(entry.adjusted_clock_in!) : null;
+    const adjOut = hasAdjOut ? formatTime(entry.adjusted_clock_out!) : null;
+
+    return (
+      <div className="text-sm space-y-0.5">
+        <div>
+          <span className={`font-medium ${hasAdjIn ? 'line-through text-muted-foreground text-xs' : ''}`}>{origIn}</span>
+          {hasAdjIn && <span className="font-medium text-primary ml-1">{adjIn}</span>}
+          <span className="text-muted-foreground"> — </span>
+          <span className={`font-medium ${hasAdjOut ? 'line-through text-muted-foreground text-xs' : ''}`}>{origOut}</span>
+          {hasAdjOut && <span className="font-medium text-primary ml-1">{adjOut}</span>}
+          {entry.break_minutes && entry.break_minutes > 0 && (
+            <span className="ml-2 text-muted-foreground text-xs">({entry.break_minutes}' Pause)</span>
+          )}
+        </div>
+        {entry.requires_overtime_approval && (
+          <span className="inline-flex items-center gap-1 text-xs text-destructive">
+            <AlertTriangle className="h-3 w-3" /> Überzeit
+          </span>
+        )}
+        {entry.notes && (
+          <p className="text-xs text-muted-foreground truncate">{entry.notes}</p>
+        )}
+      </div>
+    );
+  };
+
+  // Edit dialog: compute preview effective hours
+  const editPreviewEffective = () => {
+    if (!editEntry || !editAdjClockIn || !editAdjClockOut) return null;
+    try {
+      return calculateEffectiveHours(
+        new Date(`${editEntry.date}T${editAdjClockIn}:00`),
+        new Date(`${editEntry.date}T${editAdjClockOut}:00`),
+        parseInt(editBreak) || 0
+      );
+    } catch { return null; }
+  };
+
+  const editShift = editEntry ? shifts[editEntry.employee_id] : null;
 
   return (
     <div className="space-y-4 pb-20 md:pb-4">
@@ -215,7 +318,6 @@ export default function TimeControl() {
         </Card>
       </div>
 
-      {/* Approve all button */}
       {pendingCount > 0 && (
         <Button onClick={approveAll} className="w-full gap-2">
           <CheckCheck className="h-4 w-4" />
@@ -223,7 +325,6 @@ export default function TimeControl() {
         </Button>
       )}
 
-      {/* Entries grouped by employee */}
       {loading ? (
         <p className="text-sm text-muted-foreground text-center py-8">Laden...</p>
       ) : grouped.length === 0 ? (
@@ -234,15 +335,22 @@ export default function TimeControl() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {grouped.map(({ employee: emp, entries: empEntries }) => {
+          {grouped.map(({ employee: emp, entries: empEntries, shift }) => {
             const empTotal = empEntries.reduce((s, e) => s + (e.effective_hours || 0), 0);
             return (
               <Card key={emp.id}>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-semibold">
-                      {emp.first_name} {emp.last_name}
-                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-sm font-semibold">
+                        {emp.first_name} {emp.last_name}
+                      </CardTitle>
+                      {shift && (
+                        <Badge style={{ backgroundColor: shift.color, color: '#fff' }} className="text-xs">
+                          {shift.short_code} {shift.start_time}–{shift.end_time}
+                        </Badge>
+                      )}
+                    </div>
                     <Badge variant="secondary">{formatHoursMinutes(empTotal)}</Badge>
                   </div>
                 </CardHeader>
@@ -260,29 +368,7 @@ export default function TimeControl() {
                             <Badge variant="outline">{absenceLabels[entry.absence_type] || entry.absence_type}</Badge>
                             <span className="text-sm">{entry.absence_hours}h</span>
                           </div>
-                        ) : (
-                          <div className="text-sm">
-                            <span className="font-medium">{entry.clock_in ? formatTime(entry.clock_in) : '–'}</span>
-                            {entry.adjusted_clock_in && (
-                              <span className="text-xs text-primary ml-1">(eff. {formatTime(entry.adjusted_clock_in)})</span>
-                            )}
-                            <span className="text-muted-foreground"> — </span>
-                            <span className="font-medium">{entry.clock_out ? formatTime(entry.clock_out) : '...'}</span>
-                            {entry.break_minutes && entry.break_minutes > 0 && (
-                              <span className="ml-2 text-muted-foreground text-xs">
-                                ({entry.break_minutes}' Pause)
-                              </span>
-                            )}
-                            {entry.requires_overtime_approval && (
-                              <span className="ml-2 inline-flex items-center gap-1 text-xs text-destructive">
-                                <AlertTriangle className="h-3 w-3" /> Überzeit
-                              </span>
-                            )}
-                            {entry.notes && (
-                              <p className="text-xs text-muted-foreground mt-1 truncate">{entry.notes}</p>
-                            )}
-                          </div>
-                        )}
+                        ) : renderEntryTimes(entry)}
                       </div>
                       <div className="flex items-center gap-1 ml-2">
                         <span className="font-heading font-semibold text-sm mr-1">
@@ -294,19 +380,14 @@ export default function TimeControl() {
                         } className="text-xs">
                           {entry.status === 'approved' ? '✓' : entry.status === 'rejected' ? '✗' : '○'}
                         </Badge>
-                        {entry.status === 'pending' && (
-                          <>
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(entry)} title="Korrigieren">
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-success" onClick={() => approveEntry(entry.id)} title="Freigeben">
-                              <Check className="h-3.5 w-3.5" />
-                            </Button>
-                          </>
-                        )}
-                        {entry.status === 'approved' && (
+                        {(entry.status === 'pending' || entry.status === 'approved') && (
                           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(entry)} title="Korrigieren">
                             <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        {entry.status === 'pending' && (
+                          <Button size="icon" variant="ghost" className="h-7 w-7 text-success" onClick={() => approveEntry(entry.id)} title="Freigeben">
+                            <Check className="h-3.5 w-3.5" />
                           </Button>
                         )}
                       </div>
@@ -332,14 +413,40 @@ export default function TimeControl() {
                 {employees.find(e => e.id === editEntry.employee_id)?.last_name} — {' '}
                 {new Date(editEntry.date + 'T12:00:00').toLocaleDateString('de-CH', { weekday: 'short', day: 'numeric', month: 'short' })}
               </p>
+
+              {/* Original stamp times - read only */}
+              <div className="rounded-lg border bg-muted/50 p-3 space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Effektive Stempelzeit (Original)</p>
+                <p className="text-sm font-medium">
+                  {editEntry.clock_in ? formatTime(editEntry.clock_in) : '–'} — {editEntry.clock_out ? formatTime(editEntry.clock_out) : '...'}
+                </p>
+              </div>
+
+              {/* Shift suggestion */}
+              {editShift && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CalendarClock className="h-4 w-4 text-primary" />
+                    <div>
+                      <p className="text-xs font-medium text-primary">Dienst: {editShift.name}</p>
+                      <p className="text-sm font-semibold">{editShift.start_time} – {editShift.end_time}</p>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={applyShiftTimes}>
+                    Übernehmen
+                  </Button>
+                </div>
+              )}
+
+              {/* Adjusted times - editable */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label>Einstempeln</Label>
-                  <Input type="time" value={editClockIn} onChange={e => setEditClockIn(e.target.value)} />
+                  <Label>Anrechenbare Startzeit</Label>
+                  <Input type="time" value={editAdjClockIn} onChange={e => setEditAdjClockIn(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Ausstempeln</Label>
-                  <Input type="time" value={editClockOut} onChange={e => setEditClockOut(e.target.value)} />
+                  <Label>Anrechenbare Endzeit</Label>
+                  <Input type="time" value={editAdjClockOut} onChange={e => setEditAdjClockOut(e.target.value)} />
                 </div>
               </div>
               <div className="space-y-2">
@@ -350,17 +457,14 @@ export default function TimeControl() {
                 <Label>Bemerkung</Label>
                 <Input value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Korrekturgrund..." />
               </div>
-              {editClockIn && editClockOut && (
-                <p className="text-sm text-muted-foreground">
-                  Effektiv: <span className="font-semibold text-foreground">
-                    {formatHoursMinutes(calculateEffectiveHours(
-                      new Date(`${editEntry.date}T${editClockIn}:00`),
-                      new Date(`${editEntry.date}T${editClockOut}:00`),
-                      parseInt(editBreak) || 0
-                    ))}
-                  </span>
-                </p>
-              )}
+              {(() => {
+                const eff = editPreviewEffective();
+                return eff !== null ? (
+                  <p className="text-sm text-muted-foreground">
+                    Anrechenbar: <span className="font-semibold text-foreground">{formatHoursMinutes(eff)}</span>
+                  </p>
+                ) : null;
+              })()}
             </div>
           )}
           <DialogFooter>
