@@ -211,6 +211,8 @@ export default function Employees() {
       position: emp.position || '',
       login_email: emp.login_email || '',
       login_password: '',
+      pensum_percent: String(emp.pensum_percent ?? 100),
+      available_days: emp.available_days || ['Mo', 'Di', 'Mi', 'Do', 'Fr'],
     });
     setEditingId(emp.id);
     setSheetOpen(true);
