@@ -147,11 +147,29 @@ export default function Employees() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Kostenstelle *</Label>
-                  <Input value={form.cost_center} onChange={e => setForm(f => ({ ...f, cost_center: e.target.value }))} placeholder="z.B. Küche, Service" />
+                  <Select value={form.cost_center} onValueChange={(v) => setForm(f => ({ ...f, cost_center: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Kostenstelle wählen" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Geschäftsführung">Geschäftsführung</SelectItem>
+                      <SelectItem value="Küche">Küche</SelectItem>
+                      <SelectItem value="Service">Service</SelectItem>
+                      <SelectItem value="Office">Office</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Position *</Label>
-                  <Input value={form.position} onChange={e => setForm(f => ({ ...f, position: e.target.value }))} placeholder="z.B. Küchenchef, Koch" />
+                  <Select value={form.position} onValueChange={(v) => setForm(f => ({ ...f, position: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Position wählen" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="GF">GF</SelectItem>
+                      <SelectItem value="GF-Stv">GF-Stv</SelectItem>
+                      <SelectItem value="Küchenchef">Küchenchef</SelectItem>
+                      <SelectItem value="Koch">Koch</SelectItem>
+                      <SelectItem value="Service">Service</SelectItem>
+                      <SelectItem value="Office">Office</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="space-y-2">
