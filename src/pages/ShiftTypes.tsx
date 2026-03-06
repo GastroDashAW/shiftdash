@@ -294,6 +294,9 @@ export default function ShiftTypes() {
           );
         })}
       </div>
+
+      {/* Shift Plan Config Matrix */}
+      <ShiftPlanConfig shifts={shifts} />
     </div>
   );
 }
