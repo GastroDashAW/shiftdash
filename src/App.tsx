@@ -16,6 +16,7 @@ import ExportPage from "./pages/Export";
 import TimeControl from "./pages/TimeControl";
 import Budget from "./pages/Budget";
 import Business from "./pages/Business";
+import LeaveRequests from "./pages/LeaveRequests";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ function AppContent() {
               <Route path="/" element={<AdminDashboard />} />
               <Route path="/clock" element={<Dashboard />} />
               <Route path="/schedule" element={<Schedule />} />
+              <Route path="/leave" element={<LeaveRequests />} />
               <Route path="/employees" element={<ProtectedRoute adminOnly><Employees /></ProtectedRoute>} />
               <Route path="/shifts" element={<ProtectedRoute adminOnly><ShiftTypes /></ProtectedRoute>} />
               <Route path="/time-control" element={<ProtectedRoute adminOnly><TimeControl /></ProtectedRoute>} />

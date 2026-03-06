@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
-import { Clock, Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut, ClipboardCheck, LayoutDashboard, DollarSign, Building2 } from 'lucide-react';
+import { Clock, Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut, ClipboardCheck, LayoutDashboard, DollarSign, Building2, CalendarPlus } from 'lucide-react';
 import { useState } from 'react';
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -13,6 +13,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { to: '/', label: 'Dashboard', icon: LayoutDashboard, adminOnly: false },
     { to: '/clock', label: 'Stempeln', icon: Clock, adminOnly: false },
     { to: '/schedule', label: 'Dienstplan', icon: CalendarDays, adminOnly: false },
+    { to: '/leave', label: 'Abwesenheit', icon: CalendarPlus, adminOnly: false },
     { to: '/employees', label: 'Mitarbeiter', icon: Users, adminOnly: true },
     { to: '/shifts', label: 'Dienste', icon: Layers, adminOnly: true },
     { to: '/time-control', label: 'Tageskontrolle', icon: ClipboardCheck, adminOnly: true },
