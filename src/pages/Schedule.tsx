@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback, DragEvent } from 'react';
+import { useState, useEffect, useCallback, useMemo, DragEvent } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle } from 'lucide-react';
+import { validateSchedule, LgavViolation } from '@/lib/lgav-schedule-validation';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ShiftType {
   id: string;
@@ -19,6 +21,7 @@ interface Employee {
   id: string;
   first_name: string;
   last_name: string;
+  weekly_hours: number | null;
 }
 
 interface Assignment {
@@ -37,6 +40,7 @@ export default function Schedule() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [draggedShift, setDraggedShift] = useState<string | null>(null);
+  const [showViolations, setShowViolations] = useState(true);
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
@@ -47,7 +51,7 @@ export default function Schedule() {
 
     const [shiftsRes, empRes, assignRes] = await Promise.all([
       supabase.from('shift_types').select('*').order('sort_order'),
-      supabase.from('employees').select('id, first_name, last_name').eq('is_active', true).order('last_name'),
+      supabase.from('employees').select('id, first_name, last_name, weekly_hours').eq('is_active', true).order('last_name'),
       supabase.from('schedule_assignments').select('*').gte('date', startDate).lte('date', endDate),
     ]);
 
@@ -57,6 +61,23 @@ export default function Schedule() {
   }, [year, month, daysInMonth]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // L-GAV validation
+  const violations = useMemo(() => {
+    if (employees.length === 0 || shiftTypes.length === 0) return [];
+    return validateSchedule(assignments, employees, shiftTypes, year, month);
+  }, [assignments, employees, shiftTypes, year, month]);
+
+  // Track which cells have violations for highlighting
+  const violationCells = useMemo(() => {
+    const cells = new Set<string>();
+    for (const v of violations) {
+      for (const d of v.days) {
+        cells.add(`${v.employeeId}-${d}`);
+      }
+    }
+    return cells;
+  }, [violations]);
 
   const getAssignment = (employeeId: string, day: number) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -123,6 +144,20 @@ export default function Schedule() {
     else setMonth(m => m + 1);
   };
 
+  const violationTypeLabels: Record<string, string> = {
+    rest_time: 'Ruhezeit',
+    weekly_rest: 'Ruhetag',
+    weekly_hours: 'Wochenstunden',
+    consecutive_days: 'Arbeitstage',
+  };
+
+  const violationTypeColors: Record<string, string> = {
+    rest_time: 'text-destructive',
+    weekly_rest: 'text-warning',
+    weekly_hours: 'text-warning',
+    consecutive_days: 'text-destructive',
+  };
+
   return (
     <div className="space-y-4 pb-20 md:pb-4">
       <div className="flex items-center justify-between">
@@ -133,6 +168,56 @@ export default function Schedule() {
           <Button variant="outline" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
         </div>
       </div>
+
+      {/* L-GAV Compliance Panel */}
+      <Card className={violations.length > 0 ? 'border-destructive/50' : 'border-success/50'}>
+        <CardHeader className="py-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              {violations.length > 0 ? (
+                <>
+                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  <span className="text-destructive">{violations.length} L-GAV Verstösse</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 text-success" />
+                  <span className="text-success">L-GAV konform</span>
+                </>
+              )}
+            </CardTitle>
+            {violations.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={() => setShowViolations(!showViolations)}>
+                {showViolations ? 'Ausblenden' : 'Anzeigen'}
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <AnimatePresence>
+          {showViolations && violations.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+            >
+              <CardContent className="pt-0 pb-3">
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {violations.map((v, i) => (
+                    <div key={i} className="flex items-start gap-2 rounded-md border bg-card p-2 text-xs">
+                      <AlertTriangle className={`mt-0.5 h-3 w-3 shrink-0 ${violationTypeColors[v.type]}`} />
+                      <div className="flex-1">
+                        <span className="font-medium">{v.employeeName}</span>
+                        <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0">{violationTypeLabels[v.type]}</Badge>
+                        <p className="mt-0.5 text-muted-foreground">{v.message}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Card>
 
       {/* Shift palette for drag */}
       <Card>
@@ -186,18 +271,19 @@ export default function Schedule() {
                     {days.map(day => {
                       const assignment = getAssignment(emp.id, day);
                       const shift = assignment ? getShiftById(assignment.shift_type_id) : null;
+                      const hasViolation = violationCells.has(`${emp.id}-${day}`);
                       return (
                         <td
                           key={day}
-                          className={`px-0.5 py-1 text-center ${isWeekend(day) ? 'bg-muted/30' : ''}`}
+                          className={`px-0.5 py-1 text-center ${isWeekend(day) ? 'bg-muted/30' : ''} ${hasViolation ? 'bg-destructive/10' : ''}`}
                           onDragOver={handleDragOver}
                           onDrop={e => handleDrop(e, emp.id, day)}
                         >
                           {shift ? (
                             <div
-                              className="group relative mx-auto flex h-7 w-8 items-center justify-center rounded text-[10px] font-bold text-white cursor-pointer"
+                              className={`group relative mx-auto flex h-7 w-8 items-center justify-center rounded text-[10px] font-bold text-white cursor-pointer ${hasViolation ? 'ring-2 ring-destructive ring-offset-1' : ''}`}
                               style={{ backgroundColor: shift.color }}
-                              title={`${shift.name}${shift.start_time ? ` (${shift.start_time.slice(0,5)}–${shift.end_time?.slice(0,5)})` : ''}`}
+                              title={`${shift.name}${shift.start_time ? ` (${shift.start_time.slice(0,5)}–${shift.end_time?.slice(0,5)})` : ''}${hasViolation ? ' ⚠️ L-GAV Verstoss' : ''}`}
                               onClick={() => removeAssignment(assignment!.id)}
                             >
                               {shift.short_code}
