@@ -1,0 +1,1 @@
+ALTER TABLE public.business_settings ADD COLUMN shifts_per_day jsonb DEFAULT '{"0":0,"1":2,"2":2,"3":2,"4":2,"5":2,"6":2}'::jsonb;
