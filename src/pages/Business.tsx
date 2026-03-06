@@ -21,7 +21,6 @@ const ALL_DAYS = [
 
 type DayHours = { open: string; close: string };
 type DayHoursMap = Record<number, DayHours>;
-type ShiftsPerDay = Record<number, number>;
 
 interface BusinessData {
   id?: string;
@@ -37,7 +36,6 @@ interface BusinessData {
   closed_days: number[];
   auto_sync_schedule: boolean;
   day_opening_hours: DayHoursMap;
-  shifts_per_day: ShiftsPerDay;
 }
 
 const defaultDayHours: DayHoursMap = {
@@ -50,10 +48,6 @@ const defaultDayHours: DayHoursMap = {
   6: { open: '11:00', close: '23:00' },
 };
 
-const defaultShiftsPerDay: ShiftsPerDay = {
-  0: 0, 1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 2,
-};
-
 const empty: BusinessData = {
   name: '', address: '', phone: '', url: '',
   contact_person: '', vat_number: '',
@@ -62,7 +56,6 @@ const empty: BusinessData = {
   closed_days: [0],
   auto_sync_schedule: false,
   day_opening_hours: defaultDayHours,
-  shifts_per_day: defaultShiftsPerDay,
 };
 
 export default function Business() {
@@ -74,7 +67,6 @@ export default function Business() {
       .then(({ data: row }) => {
         if (row) {
           const closed = Array.isArray(row.closed_days) ? (row.closed_days as number[]) : [];
-          // Parse day_opening_hours from opening_hours field (JSON string) or fallback
           let dayHours = defaultDayHours;
           try {
             const parsed = JSON.parse(row.opening_hours || '{}');
@@ -82,19 +74,11 @@ export default function Business() {
               dayHours = { ...defaultDayHours, ...parsed };
             }
           } catch { /* keep defaults */ }
-          let shiftsDay = defaultShiftsPerDay;
-          try {
-            const spd = (row as any).shifts_per_day;
-            if (spd && typeof spd === 'object') {
-              shiftsDay = { ...defaultShiftsPerDay, ...spd };
-            }
-          } catch { /* keep defaults */ }
           setData({
             ...(row as any),
             closed_days: closed,
             auto_sync_schedule: row.auto_sync_schedule ?? false,
             day_opening_hours: dayHours,
-            shifts_per_day: shiftsDay,
           });
         }
       });
@@ -102,13 +86,12 @@ export default function Business() {
 
   const handleSave = async () => {
     setSaving(true);
-    const { id, day_opening_hours, shifts_per_day, ...payload } = data;
+    const { id, day_opening_hours, ...payload } = data;
     const openDays = ALL_DAYS.filter(d => !data.closed_days.includes(d.key)).map(d => d.short);
     const finalPayload = {
       ...payload,
       opening_days: openDays.join(', '),
       opening_hours: JSON.stringify(day_opening_hours),
-      shifts_per_day: shifts_per_day,
     };
 
     if (id) {
@@ -140,13 +123,6 @@ export default function Business() {
         ...prev.day_opening_hours,
         [dayKey]: { ...prev.day_opening_hours[dayKey], [field]: value },
       },
-    }));
-  };
-
-  const updateShiftsForDay = (dayKey: number, value: number) => {
-    setData(prev => ({
-      ...prev,
-      shifts_per_day: { ...prev.shifts_per_day, [dayKey]: Math.max(0, value) },
     }));
   };
 
@@ -226,7 +202,7 @@ export default function Business() {
                   {isClosed ? (
                     <span className="text-sm text-destructive italic">Geschlossen</span>
                   ) : (
-                    <div className="flex items-center gap-2 flex-1 flex-wrap">
+                    <div className="flex items-center gap-2 flex-1">
                       <Input
                         type="time"
                         className="h-8 w-28 text-sm"
@@ -240,16 +216,6 @@ export default function Business() {
                         value={hours.close}
                         onChange={e => updateDayHours(day.key, 'close', e.target.value)}
                       />
-                      <div className="flex items-center gap-1.5 ml-auto">
-                        <Input
-                          type="number"
-                          className="h-8 w-16 text-sm text-center"
-                          min={0}
-                          value={data.shifts_per_day[day.key] ?? 0}
-                          onChange={e => updateShiftsForDay(day.key, parseInt(e.target.value) || 0)}
-                        />
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">Dienste</span>
-                      </div>
                     </div>
                   )}
                 </div>
