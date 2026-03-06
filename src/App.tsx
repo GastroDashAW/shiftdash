@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
+import ShiftTypes from "./pages/ShiftTypes";
+import Schedule from "./pages/Schedule";
 import Validation from "./pages/Validation";
 import ExportPage from "./pages/Export";
 import NotFound from "./pages/NotFound";
@@ -18,6 +20,8 @@ function AppContent() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/employees" element={<Employees />} />
+        <Route path="/shifts" element={<ShiftTypes />} />
+        <Route path="/schedule" element={<Schedule />} />
         <Route path="/validation" element={<Validation />} />
         <Route path="/export" element={<ExportPage />} />
         <Route path="*" element={<NotFound />} />
