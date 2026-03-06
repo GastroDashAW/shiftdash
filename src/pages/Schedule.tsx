@@ -432,16 +432,24 @@ export default function Schedule() {
       const freiShift = shiftTypes.find(s => s.short_code.toLowerCase() === 'f' || s.name.toLowerCase() === 'frei');
       const ferienShift = shiftTypes.find(s => s.short_code === 'V' || s.name.toLowerCase() === 'ferien');
 
-      // 6. Get available employees with their available_days
+      // 6. Get available employees with their available_days and cost_center
       const { data: empDetails } = await supabase
         .from('employees')
-        .select('id, available_days, pensum_percent')
+        .select('id, available_days, pensum_percent, cost_center')
         .eq('is_active', true);
       const empAvailability = new Map<string, string[]>();
+      const empCostCenter = new Map<string, string>();
       const dayLabels = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
       for (const emp of empDetails || []) {
         const days = Array.isArray(emp.available_days) ? (emp.available_days as string[]) : ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
         empAvailability.set(emp.id, days);
+        empCostCenter.set(emp.id, emp.cost_center || '');
+      }
+
+      // Build shift cost center lookup
+      const shiftCostCenter = new Map<string, string>();
+      for (const st of shiftTypes) {
+        shiftCostCenter.set(st.id, st.cost_center || '');
       }
 
       // 7. Delete existing assignments for this month (fresh generation)
