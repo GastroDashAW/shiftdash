@@ -36,6 +36,9 @@ export default function Budget() {
   const daysInMonth = new Date(year, month, 0).getDate();
 
   // Load data
+  // Map day index (0=So,1=Mo,...) to label
+  const dayIndexToLabel: Record<number, string> = { 0: 'So', 1: 'Mo', 2: 'Di', 3: 'Mi', 4: 'Do', 5: 'Fr', 6: 'Sa' };
+
   useEffect(() => {
     const load = async () => {
       const [budgetRes, empRes, shiftRes, bizRes] = await Promise.all([
@@ -45,21 +48,42 @@ export default function Budget() {
         supabase.from('business_settings').select('*').limit(1).maybeSingle(),
       ]);
 
+      const biz = bizRes.data || null;
+      setBusinessSettings(biz);
+
+      // Build default weights from business closed_days
+      const closedDays: number[] = Array.isArray(biz?.closed_days) ? (biz.closed_days as any[]).map(Number) : [];
+      const defaultWeights: Record<string, number> = { Mo: 1, Di: 1, Mi: 1, Do: 1, Fr: 1.3, Sa: 1.5, So: 0.7 };
+      for (const idx of closedDays) {
+        const label = dayIndexToLabel[idx];
+        if (label) defaultWeights[label] = 0;
+      }
+
       if (budgetRes.data) {
         setTotalRevenue(budgetRes.data.total_revenue || 0);
         setDistributionMode(budgetRes.data.distribution_mode as any || 'linear');
         if (budgetRes.data.day_weights && typeof budgetRes.data.day_weights === 'object') {
-          setDayWeights(prev => ({ ...prev, ...(budgetRes.data.day_weights as Record<string, number>) }));
+          // Merge: saved weights override defaults, but apply closed=0 on top
+          const saved = budgetRes.data.day_weights as Record<string, number>;
+          const merged = { ...defaultWeights, ...saved };
+          // Force closed days to 0
+          for (const idx of closedDays) {
+            const label = dayIndexToLabel[idx];
+            if (label) merged[label] = 0;
+          }
+          setDayWeights(merged);
+        } else {
+          setDayWeights(defaultWeights);
         }
         setBudgetId(budgetRes.data.id);
       } else {
         setTotalRevenue(0);
         setBudgetId(null);
+        setDayWeights(defaultWeights);
       }
 
       setEmployees(empRes.data || []);
       setShiftTypes(shiftRes.data || []);
-      setBusinessSettings(bizRes.data || null);
     };
     load();
 
@@ -305,21 +329,29 @@ export default function Budget() {
               </Select>
             </div>
           </div>
-          {distributionMode === 'weighted' && (
+          {distributionMode === 'weighted' && (() => {
+            const closedDays: number[] = Array.isArray(businessSettings?.closed_days) ? (businessSettings.closed_days as any[]).map(Number) : [];
+            const closedLabels = new Set(closedDays.map(idx => dayIndexToLabel[idx]).filter(Boolean));
+            return (
             <div className="space-y-2">
-              <Label className="text-sm">Gewichtung pro Wochentag</Label>
+              <Label className="text-sm">Gewichtung pro Wochentag <span className="text-muted-foreground font-normal">(Ruhetage aus Betrieb = 0)</span></Label>
               <div className="grid grid-cols-7 gap-2">
-                {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(day => (
+                {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(day => {
+                  const isClosed = closedLabels.has(day);
+                  return (
                   <div key={day} className="space-y-1">
-                    <Label className="text-xs text-center block">{day}</Label>
-                    <Input type="number" step="0.1" min="0" value={dayWeights[day] || 1}
+                    <Label className={`text-xs text-center block ${isClosed ? 'text-destructive line-through' : ''}`}>{day}</Label>
+                    <Input type="number" step="0.1" min="0" value={dayWeights[day] ?? 1}
                       onChange={e => setDayWeights(prev => ({ ...prev, [day]: Number(e.target.value) }))}
-                      className="text-center text-sm" />
+                      disabled={isClosed}
+                      className={`text-center text-sm ${isClosed ? 'opacity-50' : ''}`} />
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
-          )}
+            );
+          })()}
           <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
             {saving ? 'Speichern...' : 'Budget speichern'}
           </Button>
