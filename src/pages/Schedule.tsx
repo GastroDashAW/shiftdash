@@ -242,10 +242,16 @@ export default function Schedule() {
   };
 
   const violationTypeLabels: Record<string, string> = {
-    rest_time: 'Ruhezeit', weekly_rest: 'Ruhetag', weekly_hours: 'Wochenstunden', consecutive_days: 'Arbeitstage',
+    rest_time: 'Ruhezeit', weekly_rest: 'Ruhetag', weekly_hours: 'Wochenstunden',
+    consecutive_days: 'Arbeitstage', daily_hours: 'Tagesarbeitszeit',
+    rest_days_month: 'Ruhetage/Monat', max_weekly_hours: 'Höchstarbeitszeit',
+    reduced_rest: 'Red. Ruhezeit',
   };
   const violationTypeColors: Record<string, string> = {
-    rest_time: 'text-destructive', weekly_rest: 'text-warning', weekly_hours: 'text-warning', consecutive_days: 'text-destructive',
+    rest_time: 'text-destructive', weekly_rest: 'text-warning', weekly_hours: 'text-warning',
+    consecutive_days: 'text-destructive', daily_hours: 'text-destructive',
+    rest_days_month: 'text-warning', max_weekly_hours: 'text-destructive',
+    reduced_rest: 'text-destructive',
   };
 
   // Group employees by cost center for display
@@ -278,19 +284,21 @@ export default function Schedule() {
       </div>
 
       {/* L-GAV Compliance Panel */}
-      <Card className={violations.length > 0 ? 'border-destructive/50' : 'border-success/50'}>
+      <Card className={violations.length > 0 ? (violations.some(v => v.severity === 'error') ? 'border-destructive/50' : 'border-warning/50') : 'border-success/50'}>
         <CardHeader className="py-3">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-sm">
               {violations.length > 0 ? (
                 <>
-                  <AlertTriangle className="h-4 w-4 text-destructive" />
-                  <span className="text-destructive">{violations.length} L-GAV Verstösse</span>
+                  <AlertTriangle className={`h-4 w-4 ${violations.some(v => v.severity === 'error') ? 'text-destructive' : 'text-warning'}`} />
+                  <span className={violations.some(v => v.severity === 'error') ? 'text-destructive' : 'text-warning'}>
+                    {violations.filter(v => v.severity === 'error').length} Fehler, {violations.filter(v => v.severity === 'warning').length} Warnungen (ArG / L-GAV)
+                  </span>
                 </>
               ) : (
                 <>
                   <CheckCircle className="h-4 w-4 text-success" />
-                  <span className="text-success">L-GAV konform</span>
+                  <span className="text-success">ArG / L-GAV konform ✓</span>
                 </>
               )}
             </CardTitle>
@@ -307,11 +315,12 @@ export default function Schedule() {
               <CardContent className="pt-0 pb-3">
                 <div className="space-y-1.5 max-h-48 overflow-y-auto">
                   {violations.map((v, i) => (
-                    <div key={i} className="flex items-start gap-2 rounded-md border bg-card p-2 text-xs">
-                      <AlertTriangle className={`mt-0.5 h-3 w-3 shrink-0 ${violationTypeColors[v.type]}`} />
+                    <div key={i} className={`flex items-start gap-2 rounded-md border p-2 text-xs ${v.severity === 'error' ? 'bg-destructive/5 border-destructive/20' : 'bg-warning/5 border-warning/20'}`}>
+                      <AlertTriangle className={`mt-0.5 h-3 w-3 shrink-0 ${v.severity === 'error' ? 'text-destructive' : 'text-warning'}`} />
                       <div className="flex-1">
                         <span className="font-medium">{v.employeeName}</span>
-                        <Badge variant="outline" className="ml-2 text-[10px] px-1 py-0">{violationTypeLabels[v.type]}</Badge>
+                        <Badge variant={v.severity === 'error' ? 'destructive' : 'outline'} className="ml-2 text-[10px] px-1 py-0">{violationTypeLabels[v.type]}</Badge>
+                        <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0 font-mono">{v.law}</Badge>
                         <p className="mt-0.5 text-muted-foreground">{v.message}</p>
                       </div>
                     </div>
