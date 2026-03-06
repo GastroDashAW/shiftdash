@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { UserPlus, Edit, Users, KeyRound } from 'lucide-react';
@@ -340,34 +341,52 @@ export default function Employees() {
             <h2 className="font-heading text-sm font-semibold text-muted-foreground uppercase tracking-wide">{costCenter}</h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {emps.map((emp: any) => (
-                <Card key={emp.id} className="cursor-pointer transition-shadow hover:shadow-md" onClick={() => openEdit(emp)}>
+                <Card
+                  key={emp.id}
+                  className={`transition-shadow hover:shadow-md ${emp.is_active === false ? 'opacity-50' : ''}`}
+                >
                   <CardContent className="flex items-center justify-between p-4">
-                    <div>
-                      <p className="font-heading font-semibold">
-                        {emp.first_name} {emp.last_name}
-                      </p>
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" className="text-xs">{emp.position}</Badge>
-                        <Badge variant={emp.employee_type === 'fixed' ? 'default' : 'secondary'}>
-                          {emp.employee_type === 'fixed' ? 'Monatslohn' : 'Stundenlohn'}
-                        </Badge>
-                        {emp.user_id && (
-                          <Badge variant="default" className="text-xs gap-1">
-                            <KeyRound className="h-3 w-3" /> Login
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <Checkbox
+                        checked={emp.is_active !== false}
+                        onCheckedChange={async (checked) => {
+                          await supabase.from('employees').update({ is_active: !!checked }).eq('id', emp.id);
+                          toast.success(checked ? 'Mitarbeiter aktiviert' : 'Mitarbeiter deaktiviert');
+                          loadEmployees();
+                        }}
+                        className="mt-1"
+                        title={emp.is_active !== false ? 'Aktiv – klicken zum Deaktivieren' : 'Inaktiv – klicken zum Aktivieren'}
+                      />
+                      <div className="cursor-pointer flex-1 min-w-0" onClick={() => openEdit(emp)}>
+                        <p className="font-heading font-semibold">
+                          {emp.first_name} {emp.last_name}
+                          {emp.is_active === false && (
+                            <Badge variant="secondary" className="ml-2 text-xs">inaktiv</Badge>
+                          )}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <Badge variant="outline" className="text-xs">{emp.position}</Badge>
+                          <Badge variant={emp.employee_type === 'fixed' ? 'default' : 'secondary'}>
+                            {emp.employee_type === 'fixed' ? 'Monatslohn' : 'Stundenlohn'}
                           </Badge>
-                        )}
-                        {emp.employee_type === 'fixed' && emp.monthly_salary && (
-                          <span className="text-xs text-muted-foreground">CHF {Number(emp.monthly_salary).toLocaleString('de-CH')}/Mt</span>
-                        )}
-                        {emp.employee_type === 'fixed' && (
-                          <span className="text-xs text-muted-foreground">{emp.weekly_hours}h/Wo</span>
-                        )}
-                        {emp.hourly_rate && (
-                          <span className="text-xs text-muted-foreground">CHF {Number(emp.hourly_rate).toFixed(2)}/h</span>
-                        )}
+                          {emp.user_id && (
+                            <Badge variant="default" className="text-xs gap-1">
+                              <KeyRound className="h-3 w-3" /> Login
+                            </Badge>
+                          )}
+                          {emp.employee_type === 'fixed' && emp.monthly_salary && (
+                            <span className="text-xs text-muted-foreground">CHF {Number(emp.monthly_salary).toLocaleString('de-CH')}/Mt</span>
+                          )}
+                          {emp.employee_type === 'fixed' && (
+                            <span className="text-xs text-muted-foreground">{emp.weekly_hours}h/Wo</span>
+                          )}
+                          {emp.hourly_rate && (
+                            <span className="text-xs text-muted-foreground">CHF {Number(emp.hourly_rate).toFixed(2)}/h</span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <Edit className="h-4 w-4 text-muted-foreground" />
+                    <Edit className="h-4 w-4 text-muted-foreground cursor-pointer shrink-0" onClick={() => openEdit(emp)} />
                   </CardContent>
                 </Card>
               ))}
