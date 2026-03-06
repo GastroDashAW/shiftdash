@@ -1,0 +1,1 @@
+ALTER TABLE public.shift_types ADD COLUMN cost_center text NOT NULL DEFAULT '';
