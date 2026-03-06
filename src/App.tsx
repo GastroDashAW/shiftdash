@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { AuthPage } from "@/components/AuthPage";
 import { useAuth } from "@/hooks/useAuth";
+import AdminDashboard from "./pages/AdminDashboard";
 import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
 import ShiftTypes from "./pages/ShiftTypes";
@@ -13,6 +14,8 @@ import Schedule from "./pages/Schedule";
 import Validation from "./pages/Validation";
 import ExportPage from "./pages/Export";
 import TimeControl from "./pages/TimeControl";
+import Budget from "./pages/Budget";
+import Business from "./pages/Business";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,13 +40,16 @@ function AppContent() {
         <ProtectedRoute>
           <Layout>
             <Routes>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/" element={<AdminDashboard />} />
+              <Route path="/clock" element={<Dashboard />} />
               <Route path="/schedule" element={<Schedule />} />
               <Route path="/employees" element={<ProtectedRoute adminOnly><Employees /></ProtectedRoute>} />
               <Route path="/shifts" element={<ProtectedRoute adminOnly><ShiftTypes /></ProtectedRoute>} />
               <Route path="/time-control" element={<ProtectedRoute adminOnly><TimeControl /></ProtectedRoute>} />
               <Route path="/validation" element={<ProtectedRoute adminOnly><Validation /></ProtectedRoute>} />
               <Route path="/export" element={<ProtectedRoute adminOnly><ExportPage /></ProtectedRoute>} />
+              <Route path="/budget" element={<ProtectedRoute adminOnly><Budget /></ProtectedRoute>} />
+              <Route path="/business" element={<ProtectedRoute adminOnly><Business /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Layout>
