@@ -113,21 +113,29 @@ export function EmployeeFormPanel({ form, setForm, editingId, employees, creatin
       <div className="space-y-1.5">
         <Label className="text-xs">Verfügbare Arbeitstage</Label>
         <div className="flex gap-1.5">
-          {ALL_WEEKDAYS.map(day => (
-            <button
-              key={day}
-              type="button"
-              onClick={() => toggleDay(day)}
-              className={`flex-1 py-1.5 rounded text-xs font-medium transition-colors ${
-                form.available_days.includes(day)
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              {day}
-            </button>
-          ))}
+          {ALL_WEEKDAYS.map(day => {
+            const isBusinessOpen = openDays.includes(day);
+            return (
+              <button
+                key={day}
+                type="button"
+                disabled={!isBusinessOpen}
+                onClick={() => isBusinessOpen && toggleDay(day)}
+                className={`flex-1 py-1.5 rounded text-xs font-medium transition-colors ${
+                  !isBusinessOpen
+                    ? 'bg-muted/40 text-muted-foreground/30 cursor-not-allowed line-through'
+                    : form.available_days.includes(day)
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+                title={!isBusinessOpen ? 'Betrieb geschlossen' : undefined}
+              >
+                {day}
+              </button>
+            );
+          })}
         </div>
+        <p className="text-[10px] text-muted-foreground">Nur Öffnungstage des Betriebs wählbar</p>
       </div>
 
       {form.employee_type === 'fixed' ? (
