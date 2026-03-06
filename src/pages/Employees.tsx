@@ -29,7 +29,11 @@ export interface EmployeeForm {
   position: string;
   login_email: string;
   login_password: string;
+  pensum_percent: string;
+  available_days: string[];
 }
+
+export const ALL_WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] as const;
 
 export const emptyForm: EmployeeForm = {
   first_name: '',
