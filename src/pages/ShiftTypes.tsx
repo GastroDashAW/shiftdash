@@ -6,8 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Pencil, Trash2, Plus, Save, X, AlertTriangle } from 'lucide-react';
+import { Pencil, Trash2, Plus, Save, X, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
 import { ShiftPlanConfig } from '@/components/shifts/ShiftPlanConfig';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+
+const COST_CENTERS = ['Geschäftsführung', 'Küche', 'Service', 'Office'];
 
 interface ShiftType {
   id: string;
@@ -17,11 +21,11 @@ interface ShiftType {
   start_time: string | null;
   end_time: string | null;
   sort_order: number;
+  cost_center: string;
 }
 
 interface DayHours { open: string; close: string; }
 
-// Subtract/add hours to a "HH:MM" time string, clamped to 00:00-23:59
 function adjustTime(time: string, deltaHours: number): string {
   const [h, m] = time.split(':').map(Number);
   let total = h * 60 + m + deltaHours * 60;
@@ -41,12 +45,13 @@ export default function ShiftTypes() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<ShiftType>>({});
   const [showAdd, setShowAdd] = useState(false);
-  const [newShift, setNewShift] = useState({ name: '', short_code: '', color: '#3b82f6', start_time: '', end_time: '' });
+  const [newShift, setNewShift] = useState({ name: '', short_code: '', color: '#3b82f6', start_time: '', end_time: '', cost_center: '' });
   const [businessSettings, setBusinessSettings] = useState<any>(null);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
   const loadShifts = async () => {
     const { data } = await supabase.from('shift_types').select('*').order('sort_order');
-    setShifts(data || []);
+    setShifts((data as ShiftType[]) || []);
   };
 
   useEffect(() => {
@@ -55,7 +60,17 @@ export default function ShiftTypes() {
       .then(({ data }) => setBusinessSettings(data));
   }, []);
 
-  // Compute earliest allowed start and latest allowed end from business hours
+  // Initialize all sections as open
+  useEffect(() => {
+    const grouped = groupShiftsByCostCenter(shifts);
+    const initial: Record<string, boolean> = {};
+    grouped.forEach(g => { initial[g.costCenter] = true; });
+    setOpenSections(prev => {
+      const merged = { ...initial, ...prev };
+      return merged;
+    });
+  }, [shifts]);
+
   const { earliestStart, latestEnd } = useMemo(() => {
     if (!businessSettings) return { earliestStart: null, latestEnd: null };
 
@@ -82,7 +97,6 @@ export default function ShiftTypes() {
 
     if (globalEarliest === null || globalLatest === null) return { earliestStart: null, latestEnd: null };
 
-    // 2h buffer
     const earliest = Math.max(0, globalEarliest - 120);
     const latest = Math.min(23 * 60 + 59, globalLatest + 120);
 
@@ -118,6 +132,7 @@ export default function ShiftTypes() {
       color: editForm.color,
       start_time: editForm.start_time || null,
       end_time: editForm.end_time || null,
+      cost_center: editForm.cost_center || '',
     }).eq('id', editingId);
     if (error) { toast.error('Fehler beim Speichern'); return; }
     toast.success('Dienst aktualisiert');
@@ -144,18 +159,50 @@ export default function ShiftTypes() {
       start_time: newShift.start_time || null,
       end_time: newShift.end_time || null,
       sort_order: maxOrder + 1,
+      cost_center: newShift.cost_center || '',
     });
     if (error) { toast.error('Fehler beim Erstellen'); return; }
     toast.success('Dienst erstellt');
-    setNewShift({ name: '', short_code: '', color: '#3b82f6', start_time: '', end_time: '' });
+    setNewShift({ name: '', short_code: '', color: '#3b82f6', start_time: '', end_time: '', cost_center: '' });
     setShowAdd(false);
     loadShifts();
   };
 
-  // Check existing shifts for violations
   const getShiftWarning = (shift: ShiftType): string | null => {
     return validateShiftTime(shift.start_time, shift.end_time);
   };
+
+  function groupShiftsByCostCenter(allShifts: ShiftType[]) {
+    const groups: { costCenter: string; shifts: ShiftType[] }[] = [];
+    const map = new Map<string, ShiftType[]>();
+
+    for (const s of allShifts) {
+      const cc = s.cost_center || 'Allgemein';
+      if (!map.has(cc)) map.set(cc, []);
+      map.get(cc)!.push(s);
+    }
+
+    // Sort: known cost centers first, then "Allgemein"
+    const order = [...COST_CENTERS, 'Allgemein'];
+    for (const cc of order) {
+      if (map.has(cc)) {
+        groups.push({ costCenter: cc, shifts: map.get(cc)! });
+        map.delete(cc);
+      }
+    }
+    // Any remaining
+    for (const [cc, s] of map) {
+      groups.push({ costCenter: cc, shifts: s });
+    }
+
+    return groups;
+  }
+
+  const toggleSection = (cc: string) => {
+    setOpenSections(prev => ({ ...prev, [cc]: !prev[cc] }));
+  };
+
+  const grouped = groupShiftsByCostCenter(shifts);
 
   const TimeConstraintInfo = () => {
     if (!earliestStart || !latestEnd) return null;
@@ -167,6 +214,20 @@ export default function ShiftTypes() {
       </div>
     );
   };
+
+  const CostCenterSelect = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
+    <div className="space-y-1">
+      <Label className="text-xs">Kostenstelle</Label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger><SelectValue placeholder="Wählen" /></SelectTrigger>
+        <SelectContent>
+          {COST_CENTERS.map(cc => (
+            <SelectItem key={cc} value={cc}>{cc}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
 
   return (
     <div className="space-y-4 pb-20 md:pb-4">
@@ -186,11 +247,16 @@ export default function ShiftTypes() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs">Name</Label>
-                <Input value={newShift.name} onChange={e => setNewShift(p => ({ ...p, name: e.target.value }))} placeholder="z.B. Frühdienst" />
+                <Input value={newShift.name} onChange={e => setNewShift(p => ({ ...p, name: e.target.value }))} placeholder="z.B. Frühdienst Küche" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Kürzel</Label>
                 <Input value={newShift.short_code} onChange={e => setNewShift(p => ({ ...p, short_code: e.target.value }))} placeholder="z.B. F" maxLength={3} />
+              </div>
+              <CostCenterSelect value={newShift.cost_center} onChange={v => setNewShift(p => ({ ...p, cost_center: v }))} />
+              <div className="space-y-1">
+                <Label className="text-xs">Farbe</Label>
+                <Input type="color" value={newShift.color} onChange={e => setNewShift(p => ({ ...p, color: e.target.value }))} className="h-10 p-1" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Von {earliestStart && <span className="text-muted-foreground">(ab {earliestStart})</span>}</Label>
@@ -201,10 +267,6 @@ export default function ShiftTypes() {
                 <Label className="text-xs">Bis {latestEnd && <span className="text-muted-foreground">(bis {latestEnd})</span>}</Label>
                 <Input type="time" value={newShift.end_time} onChange={e => setNewShift(p => ({ ...p, end_time: e.target.value }))}
                   max={latestEnd || undefined} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Farbe</Label>
-                <Input type="color" value={newShift.color} onChange={e => setNewShift(p => ({ ...p, color: e.target.value }))} className="h-10 p-1" />
               </div>
             </div>
             {validateShiftTime(newShift.start_time || null, newShift.end_time || null) && (
@@ -221,78 +283,103 @@ export default function ShiftTypes() {
         </Card>
       )}
 
-      <div className="grid gap-3">
-        {shifts.map(shift => {
-          const warning = getShiftWarning(shift);
-          return (
-          <Card key={shift.id} className={warning ? 'border-warning/50' : ''}>
-            <CardContent className="flex items-center justify-between py-3 px-4">
-              {editingId === shift.id ? (
-                <div className="flex-1 space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Name</Label>
-                      <Input value={editForm.name || ''} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Kürzel</Label>
-                      <Input value={editForm.short_code || ''} onChange={e => setEditForm(p => ({ ...p, short_code: e.target.value }))} maxLength={3} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Von {earliestStart && <span className="text-muted-foreground">(ab {earliestStart})</span>}</Label>
-                      <Input type="time" value={editForm.start_time || ''} onChange={e => setEditForm(p => ({ ...p, start_time: e.target.value }))}
-                        min={earliestStart || undefined} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Bis {latestEnd && <span className="text-muted-foreground">(bis {latestEnd})</span>}</Label>
-                      <Input type="time" value={editForm.end_time || ''} onChange={e => setEditForm(p => ({ ...p, end_time: e.target.value }))}
-                        max={latestEnd || undefined} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Farbe</Label>
-                      <Input type="color" value={editForm.color || '#3b82f6'} onChange={e => setEditForm(p => ({ ...p, color: e.target.value }))} className="h-10 p-1" />
-                    </div>
-                  </div>
-                  {validateShiftTime(editForm.start_time || null, editForm.end_time || null) && (
-                    <div className="flex items-center gap-2 text-sm text-warning">
-                      <AlertTriangle className="h-4 w-4 shrink-0" />
-                      {validateShiftTime(editForm.start_time || null, editForm.end_time || null)}
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={saveEdit} className="gap-1"><Save className="h-3 w-3" /> Speichern</Button>
-                    <Button size="sm" variant="outline" onClick={() => setEditingId(null)}><X className="h-3 w-3" /></Button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg font-heading font-bold text-white" style={{ backgroundColor: shift.color }}>
-                      {shift.short_code}
-                    </div>
-                    <div>
-                      <p className="font-medium">{shift.name}</p>
-                      {shift.start_time && shift.end_time && (
-                        <p className="text-xs text-muted-foreground">{shift.start_time.slice(0, 5)} – {shift.end_time.slice(0, 5)}</p>
-                      )}
-                      {warning && (
-                        <div className="flex items-center gap-1 text-xs text-warning mt-0.5">
-                          <AlertTriangle className="h-3 w-3" />
-                          {warning}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => startEdit(shift)}><Pencil className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => deleteShift(shift.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-          );
-        })}
+      {/* Grouped by Kostenstelle */}
+      <div className="space-y-3">
+        {grouped.map(group => (
+          <Collapsible
+            key={group.costCenter}
+            open={openSections[group.costCenter] ?? true}
+            onOpenChange={() => toggleSection(group.costCenter)}
+          >
+            <CollapsibleTrigger asChild>
+              <button className="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-2.5 text-left hover:bg-muted transition-colors">
+                {openSections[group.costCenter] ? (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                )}
+                <span className="font-heading font-semibold text-sm">{group.costCenter}</span>
+                <Badge variant="secondary" className="ml-auto text-xs">{group.shifts.length}</Badge>
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="grid gap-2 mt-2 pl-2">
+                {group.shifts.map(shift => {
+                  const warning = getShiftWarning(shift);
+                  return (
+                    <Card key={shift.id} className={warning ? 'border-warning/50' : ''}>
+                      <CardContent className="flex items-center justify-between py-3 px-4">
+                        {editingId === shift.id ? (
+                          <div className="flex-1 space-y-3">
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-xs">Name</Label>
+                                <Input value={editForm.name || ''} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Kürzel</Label>
+                                <Input value={editForm.short_code || ''} onChange={e => setEditForm(p => ({ ...p, short_code: e.target.value }))} maxLength={3} />
+                              </div>
+                              <CostCenterSelect value={editForm.cost_center || ''} onChange={v => setEditForm(p => ({ ...p, cost_center: v }))} />
+                              <div className="space-y-1">
+                                <Label className="text-xs">Farbe</Label>
+                                <Input type="color" value={editForm.color || '#3b82f6'} onChange={e => setEditForm(p => ({ ...p, color: e.target.value }))} className="h-10 p-1" />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Von {earliestStart && <span className="text-muted-foreground">(ab {earliestStart})</span>}</Label>
+                                <Input type="time" value={editForm.start_time || ''} onChange={e => setEditForm(p => ({ ...p, start_time: e.target.value }))}
+                                  min={earliestStart || undefined} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Bis {latestEnd && <span className="text-muted-foreground">(bis {latestEnd})</span>}</Label>
+                                <Input type="time" value={editForm.end_time || ''} onChange={e => setEditForm(p => ({ ...p, end_time: e.target.value }))}
+                                  max={latestEnd || undefined} />
+                              </div>
+                            </div>
+                            {validateShiftTime(editForm.start_time || null, editForm.end_time || null) && (
+                              <div className="flex items-center gap-2 text-sm text-warning">
+                                <AlertTriangle className="h-4 w-4 shrink-0" />
+                                {validateShiftTime(editForm.start_time || null, editForm.end_time || null)}
+                              </div>
+                            )}
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={saveEdit} className="gap-1"><Save className="h-3 w-3" /> Speichern</Button>
+                              <Button size="sm" variant="outline" onClick={() => setEditingId(null)}><X className="h-3 w-3" /></Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg font-heading font-bold text-white" style={{ backgroundColor: shift.color }}>
+                                {shift.short_code}
+                              </div>
+                              <div>
+                                <p className="font-medium">{shift.name}</p>
+                                {shift.start_time && shift.end_time && (
+                                  <p className="text-xs text-muted-foreground">{shift.start_time.slice(0, 5)} – {shift.end_time.slice(0, 5)}</p>
+                                )}
+                                {warning && (
+                                  <div className="flex items-center gap-1 text-xs text-warning mt-0.5">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    {warning}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button size="icon" variant="ghost" onClick={() => startEdit(shift)}><Pencil className="h-4 w-4" /></Button>
+                              <Button size="icon" variant="ghost" onClick={() => deleteShift(shift.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                            </div>
+                          </>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        ))}
       </div>
 
       {/* Shift Plan Config Matrix */}
