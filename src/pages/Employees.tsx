@@ -68,7 +68,23 @@ export default function Employees() {
       .order('cost_center')
       .order('position')
       .order('last_name');
-    setEmployees(data || []);
+    const emps: any[] = data || [];
+    
+    // Fetch login emails from profiles for employees with user_id
+    const userIds = emps.filter(e => e.user_id).map(e => e.user_id);
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, email')
+        .in('user_id', userIds);
+      if (profiles) {
+        const emailMap = Object.fromEntries(profiles.map(p => [p.user_id, p.email]));
+        emps.forEach(e => {
+          if (e.user_id) e.login_email = emailMap[e.user_id] || null;
+        });
+      }
+    }
+    setEmployees(emps);
   };
 
   useEffect(() => { loadEmployees(); }, []);
@@ -185,7 +201,7 @@ export default function Employees() {
       vacation_surcharge_percent: String(emp.vacation_surcharge_percent || 8.33),
       cost_center: emp.cost_center || '',
       position: emp.position || '',
-      login_email: '',
+      login_email: emp.login_email || '',
       login_password: '',
     });
     setEditingId(emp.id);
@@ -279,10 +295,10 @@ export default function Employees() {
                             {emp.employee_type === 'fixed' ? 'Fix' : 'Std'}
                           </Badge>
                           {emp.user_id && (
-                            <Badge variant="default" className="text-[10px] md:text-xs gap-0.5">
-                              <KeyRound className="h-2.5 w-2.5 md:h-3 md:w-3" /> Login
-                            </Badge>
-                          )}
+                             <Badge variant="default" className="text-[10px] md:text-xs gap-0.5" title={emp.login_email || ''}>
+                               <KeyRound className="h-2.5 w-2.5 md:h-3 md:w-3" /> {emp.login_email || 'Login'}
+                             </Badge>
+                           )}
                           {emp.employee_type === 'fixed' && emp.monthly_salary && (
                             <span className="text-[10px] md:text-xs text-muted-foreground hidden sm:inline">CHF {Number(emp.monthly_salary).toLocaleString('de-CH')}/Mt</span>
                           )}
