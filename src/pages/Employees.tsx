@@ -22,6 +22,8 @@ interface EmployeeForm {
   hourly_rate: string;
   vacation_days_per_year: string;
   vacation_surcharge_percent: string;
+  cost_center: string;
+  position: string;
 }
 
 const emptyForm: EmployeeForm = {
@@ -32,6 +34,8 @@ const emptyForm: EmployeeForm = {
   hourly_rate: '',
   vacation_days_per_year: '20',
   vacation_surcharge_percent: '8.33',
+  cost_center: '',
+  position: '',
 };
 
 export default function Employees() {
@@ -44,6 +48,8 @@ export default function Employees() {
     const { data } = await supabase
       .from('employees')
       .select('*')
+      .order('cost_center')
+      .order('position')
       .order('last_name');
     setEmployees(data || []);
   };
@@ -51,6 +57,9 @@ export default function Employees() {
   useEffect(() => { loadEmployees(); }, []);
 
   const handleSave = async () => {
+    if (!form.cost_center.trim()) { toast.error('Kostenstelle ist erforderlich'); return; }
+    if (!form.position.trim()) { toast.error('Position ist erforderlich'); return; }
+
     const payload = {
       first_name: form.first_name,
       last_name: form.last_name,
@@ -59,6 +68,8 @@ export default function Employees() {
       hourly_rate: form.hourly_rate ? parseFloat(form.hourly_rate) : null,
       vacation_days_per_year: parseInt(form.vacation_days_per_year) || 20,
       vacation_surcharge_percent: parseFloat(form.vacation_surcharge_percent) || 8.33,
+      cost_center: form.cost_center.trim(),
+      position: form.position.trim(),
     };
 
     if (editingId) {
@@ -86,10 +97,20 @@ export default function Employees() {
       hourly_rate: emp.hourly_rate ? String(emp.hourly_rate) : '',
       vacation_days_per_year: String(emp.vacation_days_per_year || 20),
       vacation_surcharge_percent: String(emp.vacation_surcharge_percent || 8.33),
+      cost_center: emp.cost_center || '',
+      position: emp.position || '',
     });
     setEditingId(emp.id);
     setDialogOpen(true);
   };
+
+  // Group employees by cost center
+  const grouped = employees.reduce((acc: Record<string, any[]>, emp) => {
+    const key = emp.cost_center || 'Ohne Kostenstelle';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(emp);
+    return acc;
+  }, {});
 
   return (
     <div className="space-y-4 pb-20 md:pb-4">
@@ -115,12 +136,22 @@ export default function Employees() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label>Vorname</Label>
+                  <Label>Vorname *</Label>
                   <Input value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Nachname</Label>
+                  <Label>Nachname *</Label>
                   <Input value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Kostenstelle *</Label>
+                  <Input value={form.cost_center} onChange={e => setForm(f => ({ ...f, cost_center: e.target.value }))} placeholder="z.B. Küche, Service" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Position *</Label>
+                  <Input value={form.position} onChange={e => setForm(f => ({ ...f, position: e.target.value }))} placeholder="z.B. Küchenchef, Koch" />
                 </div>
               </div>
               <div className="space-y-2">
@@ -164,7 +195,6 @@ export default function Employees() {
         </Dialog>
       </div>
 
-      {/* Excel Import Drop Zone */}
       <EmployeeImportDropZone onImported={loadEmployees} />
 
       {employees.length === 0 ? (
@@ -174,35 +204,41 @@ export default function Employees() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {employees.map(emp => (
-            <Card key={emp.id} className="cursor-pointer transition-shadow hover:shadow-md" onClick={() => openEdit(emp)}>
-              <CardContent className="flex items-center justify-between p-4">
-                <div>
-                  <p className="font-heading font-semibold">
-                    {emp.first_name} {emp.last_name}
-                  </p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <Badge variant={emp.employee_type === 'fixed' ? 'default' : 'secondary'}>
-                      {emp.employee_type === 'fixed' ? 'Monatslohn' : 'Stundenlohn'}
-                    </Badge>
-                    {emp.employee_type === 'fixed' && (
-                      <span className="text-xs text-muted-foreground">
-                        {emp.weekly_hours}h/Wo · Saldo: {formatHoursMinutes(emp.overtime_balance_hours || 0)}
-                      </span>
-                    )}
-                    {emp.employee_type === 'hourly' && emp.hourly_rate && (
-                      <span className="text-xs text-muted-foreground">
-                        CHF {emp.hourly_rate}/h
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <Edit className="h-4 w-4 text-muted-foreground" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        Object.entries(grouped).map(([costCenter, emps]: [string, any[]]) => (
+          <div key={costCenter} className="space-y-2">
+            <h2 className="font-heading text-sm font-semibold text-muted-foreground uppercase tracking-wide">{costCenter}</h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {emps.map((emp: any) => (
+                <Card key={emp.id} className="cursor-pointer transition-shadow hover:shadow-md" onClick={() => openEdit(emp)}>
+                  <CardContent className="flex items-center justify-between p-4">
+                    <div>
+                      <p className="font-heading font-semibold">
+                        {emp.first_name} {emp.last_name}
+                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="text-xs">{emp.position}</Badge>
+                        <Badge variant={emp.employee_type === 'fixed' ? 'default' : 'secondary'}>
+                          {emp.employee_type === 'fixed' ? 'Monatslohn' : 'Stundenlohn'}
+                        </Badge>
+                        {emp.employee_type === 'fixed' && (
+                          <span className="text-xs text-muted-foreground">
+                            {emp.weekly_hours}h/Wo
+                          </span>
+                        )}
+                        {emp.employee_type === 'hourly' && emp.hourly_rate && (
+                          <span className="text-xs text-muted-foreground">
+                            CHF {emp.hourly_rate}/h
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Edit className="h-4 w-4 text-muted-foreground" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        ))
       )}
     </div>
   );

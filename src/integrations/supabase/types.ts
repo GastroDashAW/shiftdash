@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       employees: {
         Row: {
+          cost_center: string
           created_at: string
           employee_type: Database["public"]["Enums"]["employee_type"]
           first_name: string
@@ -25,6 +26,7 @@ export type Database = {
           is_active: boolean | null
           last_name: string
           overtime_balance_hours: number | null
+          position: string
           updated_at: string
           user_id: string | null
           vacation_days_per_year: number | null
@@ -32,6 +34,7 @@ export type Database = {
           weekly_hours: number | null
         }
         Insert: {
+          cost_center?: string
           created_at?: string
           employee_type?: Database["public"]["Enums"]["employee_type"]
           first_name: string
@@ -41,6 +44,7 @@ export type Database = {
           is_active?: boolean | null
           last_name: string
           overtime_balance_hours?: number | null
+          position?: string
           updated_at?: string
           user_id?: string | null
           vacation_days_per_year?: number | null
@@ -48,6 +52,7 @@ export type Database = {
           weekly_hours?: number | null
         }
         Update: {
+          cost_center?: string
           created_at?: string
           employee_type?: Database["public"]["Enums"]["employee_type"]
           first_name?: string
@@ -57,6 +62,7 @@ export type Database = {
           is_active?: boolean | null
           last_name?: string
           overtime_balance_hours?: number | null
+          position?: string
           updated_at?: string
           user_id?: string | null
           vacation_days_per_year?: number | null
@@ -225,6 +231,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      schedule_events: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          label: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          label?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          label?: string
+        }
+        Relationships: []
       }
       shift_types: {
         Row: {
