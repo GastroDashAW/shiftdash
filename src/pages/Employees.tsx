@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { UserPlus, Edit, Users } from 'lucide-react';
-import { formatHoursMinutes } from '@/lib/lgav';
+import { UserPlus, Edit, Users, KeyRound } from 'lucide-react';
 import { EmployeeImportDropZone } from '@/components/EmployeeImportDropZone';
 
 type EmployeeType = 'fixed' | 'hourly';
@@ -24,6 +23,8 @@ interface EmployeeForm {
   vacation_surcharge_percent: string;
   cost_center: string;
   position: string;
+  login_email: string;
+  login_password: string;
 }
 
 const emptyForm: EmployeeForm = {
@@ -36,6 +37,8 @@ const emptyForm: EmployeeForm = {
   vacation_surcharge_percent: '8.33',
   cost_center: '',
   position: '',
+  login_email: '',
+  login_password: '',
 };
 
 export default function Employees() {
@@ -43,6 +46,7 @@ export default function Employees() {
   const [form, setForm] = useState<EmployeeForm>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [creatingLogin, setCreatingLogin] = useState(false);
 
   const loadEmployees = async () => {
     const { data } = await supabase
@@ -72,20 +76,56 @@ export default function Employees() {
       position: form.position.trim(),
     };
 
+    let savedId = editingId;
+
     if (editingId) {
       const { error } = await supabase.from('employees').update(payload).eq('id', editingId);
       if (error) { toast.error('Fehler beim Aktualisieren'); return; }
       toast.success('Mitarbeiter aktualisiert');
     } else {
-      const { error } = await supabase.from('employees').insert(payload);
+      const { data, error } = await supabase.from('employees').insert(payload).select().single();
       if (error) { toast.error('Fehler beim Erstellen'); return; }
       toast.success('Mitarbeiter erstellt');
+      savedId = data.id;
+    }
+
+    // Create login if email & password provided and employee has no user_id yet
+    if (form.login_email && form.login_password && savedId) {
+      const emp = employees.find(e => e.id === savedId);
+      if (!emp?.user_id || !editingId) {
+        await createEmployeeLogin(savedId, form.login_email, form.login_password);
+      }
     }
 
     setDialogOpen(false);
     setForm(emptyForm);
     setEditingId(null);
     loadEmployees();
+  };
+
+  const createEmployeeLogin = async (employeeId: string, email: string, password: string) => {
+    setCreatingLogin(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke('create-employee-user', {
+        body: {
+          email,
+          password,
+          full_name: `${form.first_name} ${form.last_name}`,
+          employee_id: employeeId,
+        },
+      });
+      if (res.error) {
+        toast.error('Login-Erstellung fehlgeschlagen: ' + (res.error.message || 'Unbekannter Fehler'));
+      } else if (res.data?.error) {
+        toast.error('Login-Erstellung fehlgeschlagen: ' + res.data.error);
+      } else {
+        toast.success(`Login für ${email} erstellt`);
+      }
+    } catch (err: any) {
+      toast.error('Fehler: ' + err.message);
+    }
+    setCreatingLogin(false);
   };
 
   const openEdit = (emp: any) => {
@@ -99,12 +139,13 @@ export default function Employees() {
       vacation_surcharge_percent: String(emp.vacation_surcharge_percent || 8.33),
       cost_center: emp.cost_center || '',
       position: emp.position || '',
+      login_email: '',
+      login_password: '',
     });
     setEditingId(emp.id);
     setDialogOpen(true);
   };
 
-  // Group employees by cost center
   const grouped = employees.reduce((acc: Record<string, any[]>, emp) => {
     const key = emp.cost_center || 'Ohne Kostenstelle';
     if (!acc[key]) acc[key] = [];
@@ -129,7 +170,7 @@ export default function Employees() {
               Neu
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingId ? 'Bearbeiten' : 'Neuer Mitarbeiter'}</DialogTitle>
             </DialogHeader>
@@ -205,8 +246,42 @@ export default function Employees() {
                   </div>
                 </div>
               )}
-              <Button onClick={handleSave} className="w-full">
-                {editingId ? 'Aktualisieren' : 'Erstellen'}
+
+              {/* Login section */}
+              <div className="border-t pt-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="h-4 w-4 text-muted-foreground" />
+                  <Label className="font-heading font-semibold">Login-Zugang</Label>
+                  {editingId && employees.find(e => e.id === editingId)?.user_id && (
+                    <Badge variant="default" className="text-xs">Login aktiv</Badge>
+                  )}
+                </div>
+                {(!editingId || !employees.find(e => e.id === editingId)?.user_id) && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs">E-Mail</Label>
+                      <Input
+                        type="email"
+                        value={form.login_email}
+                        onChange={e => setForm(f => ({ ...f, login_email: e.target.value }))}
+                        placeholder="max@restaurant.ch"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">Passwort</Label>
+                      <Input
+                        type="text"
+                        value={form.login_password}
+                        onChange={e => setForm(f => ({ ...f, login_password: e.target.value }))}
+                        placeholder="Min. 6 Zeichen"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Button onClick={handleSave} className="w-full" disabled={creatingLogin}>
+                {creatingLogin ? 'Login wird erstellt...' : editingId ? 'Aktualisieren' : 'Erstellen'}
               </Button>
             </div>
           </DialogContent>
@@ -238,15 +313,16 @@ export default function Employees() {
                         <Badge variant={emp.employee_type === 'fixed' ? 'default' : 'secondary'}>
                           {emp.employee_type === 'fixed' ? 'Monatslohn' : 'Stundenlohn'}
                         </Badge>
+                        {emp.user_id && (
+                          <Badge variant="default" className="text-xs gap-1">
+                            <KeyRound className="h-3 w-3" /> Login
+                          </Badge>
+                        )}
                         {emp.employee_type === 'fixed' && (
-                          <span className="text-xs text-muted-foreground">
-                            {emp.weekly_hours}h/Wo
-                          </span>
+                          <span className="text-xs text-muted-foreground">{emp.weekly_hours}h/Wo</span>
                         )}
                         {emp.employee_type === 'hourly' && emp.hourly_rate && (
-                          <span className="text-xs text-muted-foreground">
-                            CHF {emp.hourly_rate}/h
-                          </span>
+                          <span className="text-xs text-muted-foreground">CHF {emp.hourly_rate}/h</span>
                         )}
                       </div>
                     </div>
