@@ -17,6 +17,8 @@ export type Database = {
       business_settings: {
         Row: {
           address: string | null
+          auto_sync_schedule: boolean | null
+          closed_days: Json | null
           contact_person: string | null
           created_at: string
           id: string
@@ -31,6 +33,8 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          auto_sync_schedule?: boolean | null
+          closed_days?: Json | null
           contact_person?: string | null
           created_at?: string
           id?: string
@@ -45,6 +49,8 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          auto_sync_schedule?: boolean | null
+          closed_days?: Json | null
           contact_person?: string | null
           created_at?: string
           id?: string

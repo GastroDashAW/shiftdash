@@ -88,11 +88,12 @@ export default function Schedule() {
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
     const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
 
-    const [shiftsRes, empRes, assignRes, eventsRes] = await Promise.all([
+    const [shiftsRes, empRes, assignRes, eventsRes, bizRes] = await Promise.all([
       supabase.from('shift_types').select('*').order('sort_order'),
       supabase.from('employees').select('id, first_name, last_name, weekly_hours, hourly_rate, cost_center, position').eq('is_active', true),
       supabase.from('schedule_assignments').select('*').gte('date', startDate).lte('date', endDate),
       supabase.from('schedule_events').select('*').gte('date', startDate).lte('date', endDate),
+      supabase.from('business_settings').select('closed_days, auto_sync_schedule').limit(1).maybeSingle(),
     ]);
 
     const sorted = (empRes.data || []).sort((a, b) => {
@@ -101,11 +102,51 @@ export default function Schedule() {
       return getPositionOrder(a.position || '') - getPositionOrder(b.position || '');
     });
 
-    setShiftTypes(shiftsRes.data || []);
-    setEmployees(sorted);
-    setAssignments(assignRes.data || []);
+    const shifts = shiftsRes.data || [];
+    const emps = sorted;
+    let currentAssignments = assignRes.data || [];
+
+    setShiftTypes(shifts);
+    setEmployees(emps);
     setEvents(eventsRes.data || []);
-  }, [year, month, daysInMonth]);
+
+    // Auto-sync: assign "Frei" on closed days if enabled
+    if (isAdmin && bizRes.data?.auto_sync_schedule && Array.isArray(bizRes.data.closed_days)) {
+      const closedDays: number[] = bizRes.data.closed_days as number[];
+      // Find a "Frei" shift type (case-insensitive match on name or short_code)
+      const freiShift = shifts.find(s =>
+        s.short_code.toLowerCase() === 'f' ||
+        s.name.toLowerCase() === 'frei' ||
+        s.short_code.toLowerCase() === 'frei'
+      );
+
+      if (freiShift && closedDays.length > 0) {
+        const toInsert: { employee_id: string; date: string; shift_type_id: string }[] = [];
+        const existingKeys = new Set(currentAssignments.map(a => `${a.employee_id}-${a.date}`));
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const date = new Date(year, month, d);
+          if (closedDays.includes(date.getDay())) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            for (const emp of emps) {
+              if (!existingKeys.has(`${emp.id}-${dateStr}`)) {
+                toInsert.push({ employee_id: emp.id, date: dateStr, shift_type_id: freiShift.id });
+              }
+            }
+          }
+        }
+
+        if (toInsert.length > 0) {
+          const { data: inserted } = await supabase.from('schedule_assignments').insert(toInsert).select();
+          if (inserted) {
+            currentAssignments = [...currentAssignments, ...inserted];
+          }
+        }
+      }
+    }
+
+    setAssignments(currentAssignments);
+  }, [year, month, daysInMonth, isAdmin]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
