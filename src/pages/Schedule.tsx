@@ -19,6 +19,7 @@ interface ShiftType {
   color: string;
   start_time: string | null;
   end_time: string | null;
+  cost_center: string;
 }
 
 interface Employee {
