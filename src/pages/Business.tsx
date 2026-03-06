@@ -37,6 +37,7 @@ interface BusinessData {
   closed_days: number[];
   auto_sync_schedule: boolean;
   day_opening_hours: DayHoursMap;
+  shifts_per_day: ShiftsPerDay;
 }
 
 const defaultDayHours: DayHoursMap = {
