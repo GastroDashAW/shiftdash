@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { NavLink } from '@/components/NavLink';
-import { Clock, Users, CalendarCheck, FileDown, Menu, X } from 'lucide-react';
+import { Clock, Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays } from 'lucide-react';
 import { useState } from 'react';
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -10,6 +10,8 @@ export function Layout({ children }: { children: ReactNode }) {
   const navItems = [
     { to: '/', label: 'Stempeln', icon: Clock },
     { to: '/employees', label: 'Mitarbeiter', icon: Users },
+    { to: '/shifts', label: 'Dienste', icon: Layers },
+    { to: '/schedule', label: 'Dienstplan', icon: CalendarDays },
     { to: '/validation', label: 'Validierung', icon: CalendarCheck },
     { to: '/export', label: 'Export', icon: FileDown },
   ];

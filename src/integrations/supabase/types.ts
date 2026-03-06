@@ -187,6 +187,78 @@ export type Database = {
         }
         Relationships: []
       }
+      schedule_assignments: {
+        Row: {
+          created_at: string
+          date: string
+          employee_id: string
+          id: string
+          shift_type_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          employee_id: string
+          id?: string
+          shift_type_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          employee_id?: string
+          id?: string
+          shift_type_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_assignments_shift_type_id_fkey"
+            columns: ["shift_type_id"]
+            isOneToOne: false
+            referencedRelation: "shift_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shift_types: {
+        Row: {
+          color: string
+          created_at: string
+          end_time: string | null
+          id: string
+          name: string
+          short_code: string
+          sort_order: number
+          start_time: string | null
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          name: string
+          short_code: string
+          sort_order?: number
+          start_time?: string | null
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          name?: string
+          short_code?: string
+          sort_order?: number
+          start_time?: string | null
+        }
+        Relationships: []
+      }
       time_entries: {
         Row: {
           absence_hours: number | null
