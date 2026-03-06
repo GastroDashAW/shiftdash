@@ -375,6 +375,8 @@ export default function Schedule() {
     return Object.values(dailyCosts).reduce((sum, c) => sum + c, 0);
   }, [dailyCosts]);
 
+  const formatTime = (t: string | null) => t ? t.slice(0, 5) : '';
+
   const [autoGenerating, setAutoGenerating] = useState(false);
 
   const handleAutoGenerate = async () => {
