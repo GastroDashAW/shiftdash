@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      business_settings: {
+        Row: {
+          address: string | null
+          contact_person: string | null
+          created_at: string
+          id: string
+          name: string
+          opening_days: string | null
+          opening_hours: string | null
+          phone: string | null
+          social_charges_percent: number | null
+          updated_at: string
+          url: string | null
+          vat_number: string | null
+        }
+        Insert: {
+          address?: string | null
+          contact_person?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          opening_days?: string | null
+          opening_hours?: string | null
+          phone?: string | null
+          social_charges_percent?: number | null
+          updated_at?: string
+          url?: string | null
+          vat_number?: string | null
+        }
+        Update: {
+          address?: string | null
+          contact_person?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          opening_days?: string | null
+          opening_hours?: string | null
+          phone?: string | null
+          social_charges_percent?: number | null
+          updated_at?: string
+          url?: string | null
+          vat_number?: string | null
+        }
+        Relationships: []
+      }
       employees: {
         Row: {
           cost_center: string
@@ -101,6 +146,39 @@ export type Database = {
           id?: string
           name?: string
           uploaded_by?: string | null
+        }
+        Relationships: []
+      }
+      monthly_budgets: {
+        Row: {
+          created_at: string
+          day_weights: Json | null
+          distribution_mode: string
+          id: string
+          month: number
+          total_revenue: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          day_weights?: Json | null
+          distribution_mode?: string
+          id?: string
+          month: number
+          total_revenue?: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          day_weights?: Json | null
+          distribution_mode?: string
+          id?: string
+          month?: number
+          total_revenue?: number
+          updated_at?: string
+          year?: number
         }
         Relationships: []
       }
