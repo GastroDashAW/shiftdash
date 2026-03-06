@@ -94,6 +94,7 @@ export type Database = {
       }
       employees: {
         Row: {
+          available_days: Json | null
           cost_center: string
           created_at: string
           employee_type: Database["public"]["Enums"]["employee_type"]
@@ -105,6 +106,7 @@ export type Database = {
           last_name: string
           monthly_salary: number | null
           overtime_balance_hours: number | null
+          pensum_percent: number | null
           position: string
           updated_at: string
           user_id: string | null
@@ -113,6 +115,7 @@ export type Database = {
           weekly_hours: number | null
         }
         Insert: {
+          available_days?: Json | null
           cost_center?: string
           created_at?: string
           employee_type?: Database["public"]["Enums"]["employee_type"]
@@ -124,6 +127,7 @@ export type Database = {
           last_name: string
           monthly_salary?: number | null
           overtime_balance_hours?: number | null
+          pensum_percent?: number | null
           position?: string
           updated_at?: string
           user_id?: string | null
@@ -132,6 +136,7 @@ export type Database = {
           weekly_hours?: number | null
         }
         Update: {
+          available_days?: Json | null
           cost_center?: string
           created_at?: string
           employee_type?: Database["public"]["Enums"]["employee_type"]
@@ -143,6 +148,7 @@ export type Database = {
           last_name?: string
           monthly_salary?: number | null
           overtime_balance_hours?: number | null
+          pensum_percent?: number | null
           position?: string
           updated_at?: string
           user_id?: string | null
