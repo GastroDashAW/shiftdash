@@ -102,14 +102,13 @@ export default function Business() {
 
   const handleSave = async () => {
     setSaving(true);
-    const { id, day_opening_hours, ...payload } = data;
-    // Build opening_days string from closed_days
+    const { id, day_opening_hours, shifts_per_day, ...payload } = data;
     const openDays = ALL_DAYS.filter(d => !data.closed_days.includes(d.key)).map(d => d.short);
-    // Store day_opening_hours as JSON in opening_hours field
     const finalPayload = {
       ...payload,
       opening_days: openDays.join(', '),
       opening_hours: JSON.stringify(day_opening_hours),
+      shifts_per_day: shifts_per_day,
     };
 
     if (id) {
