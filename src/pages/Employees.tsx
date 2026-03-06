@@ -116,6 +116,8 @@ export default function Employees() {
       vacation_surcharge_percent: parseFloat(form.vacation_surcharge_percent) || 8.33,
       cost_center: form.cost_center.trim(),
       position: form.position.trim(),
+      pensum_percent: parseFloat(form.pensum_percent) || 100,
+      available_days: form.available_days,
     };
 
     let savedId = editingId;
