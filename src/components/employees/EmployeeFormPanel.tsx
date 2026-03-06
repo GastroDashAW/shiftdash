@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,6 +23,17 @@ interface EmployeeFormPanelProps {
 export function EmployeeFormPanel({ form, setForm, editingId, employees, creatingLogin, onSave }: EmployeeFormPanelProps) {
   const currentEmp = editingId ? employees.find(e => e.id === editingId) : null;
   const hasLogin = !!currentEmp?.user_id;
+
+  const [openDays, setOpenDays] = useState<string[]>([...ALL_WEEKDAYS]);
+
+  useEffect(() => {
+    supabase.from('business_settings').select('opening_days').limit(1).single().then(({ data }) => {
+      if (data?.opening_days) {
+        const days = (data.opening_days as string).split(',').map(d => d.trim()).filter(Boolean);
+        if (days.length > 0) setOpenDays(days);
+      }
+    });
+  }, []);
 
   const toggleDay = (day: string) => {
     setForm(f => ({
@@ -100,21 +113,29 @@ export function EmployeeFormPanel({ form, setForm, editingId, employees, creatin
       <div className="space-y-1.5">
         <Label className="text-xs">Verfügbare Arbeitstage</Label>
         <div className="flex gap-1.5">
-          {ALL_WEEKDAYS.map(day => (
-            <button
-              key={day}
-              type="button"
-              onClick={() => toggleDay(day)}
-              className={`flex-1 py-1.5 rounded text-xs font-medium transition-colors ${
-                form.available_days.includes(day)
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              {day}
-            </button>
-          ))}
+          {ALL_WEEKDAYS.map(day => {
+            const isBusinessOpen = openDays.includes(day);
+            return (
+              <button
+                key={day}
+                type="button"
+                disabled={!isBusinessOpen}
+                onClick={() => isBusinessOpen && toggleDay(day)}
+                className={`flex-1 py-1.5 rounded text-xs font-medium transition-colors ${
+                  !isBusinessOpen
+                    ? 'bg-muted/40 text-muted-foreground/30 cursor-not-allowed line-through'
+                    : form.available_days.includes(day)
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+                title={!isBusinessOpen ? 'Betrieb geschlossen' : undefined}
+              >
+                {day}
+              </button>
+            );
+          })}
         </div>
+        <p className="text-[10px] text-muted-foreground">Nur Öffnungstage des Betriebs wählbar</p>
       </div>
 
       {form.employee_type === 'fixed' ? (
