@@ -502,11 +502,18 @@ export default function Schedule() {
           const required = configMap[shiftId]?.[dow] ?? 0;
           if (required <= 0) continue;
 
-          // Get eligible employees: available on this day, not yet assigned, not on leave
+          // Get eligible employees: available on this day, not yet assigned, not on leave, matching cost center
+          const shiftCC = shiftCostCenter.get(shiftId) || '';
           const eligible = employees.filter(emp => {
             if (assignedToday.has(emp.id)) return false;
             const avail = empAvailability.get(emp.id) || [];
-            return avail.includes(dayLabel);
+            if (!avail.includes(dayLabel)) return false;
+            // Match cost center: if shift has a cost center, only assign employees from that cost center
+            if (shiftCC && shiftCC !== '') {
+              const empCC = empCostCenter.get(emp.id) || '';
+              if (empCC !== shiftCC) return false;
+            }
+            return true;
           });
 
           // Sort by least shifts assigned (fair distribution)
