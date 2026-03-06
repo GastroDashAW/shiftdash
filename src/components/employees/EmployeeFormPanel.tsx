@@ -135,8 +135,11 @@ export function EmployeeFormPanel({ form, setForm, editingId, employees, creatin
               type="email"
               value={form.login_email}
               onChange={e => setForm(f => ({ ...f, login_email: e.target.value }))}
-              placeholder={hasLogin ? 'Neue E-Mail' : 'max@restaurant.ch'}
+              placeholder={hasLogin ? 'Neue E-Mail eingeben' : 'max@restaurant.ch'}
             />
+            {hasLogin && form.login_email && (
+              <p className="text-[10px] text-muted-foreground">Aktuell: {form.login_email}</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label className="text-[10px]">Passwort</Label>
