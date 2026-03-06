@@ -364,7 +364,7 @@ export default function Schedule() {
                 </tr>
                 {/* Events row */}
                 <tr className="border-b bg-accent/10">
-                  <th className="sticky left-0 z-10 bg-accent/10 px-3 py-1 text-left text-[10px] font-medium text-accent-foreground">
+                  <th className="sticky left-0 z-10 bg-accent/10 px-3 py-1 text-left text-[10px] font-medium text-foreground">
                     Anlass
                   </th>
                   {days.map(day => {
@@ -382,7 +382,7 @@ export default function Schedule() {
                           />
                         ) : (
                           <div
-                            className="mx-auto min-h-[18px] cursor-pointer rounded px-0.5 text-[9px] leading-tight text-accent-foreground hover:bg-accent/30 truncate max-w-[38px]"
+                            className="mx-auto min-h-[18px] cursor-pointer rounded px-0.5 text-[9px] leading-tight text-foreground hover:bg-accent/30 truncate max-w-[38px]"
                             title={ev?.label || 'Klicken zum Eintragen'}
                             onClick={() => { setEditingEventDay(day); setEventText(ev?.label || ''); }}
                           >
