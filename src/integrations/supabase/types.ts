@@ -166,6 +166,63 @@ export type Database = {
           },
         ]
       }
+      overtime_verifications: {
+        Row: {
+          actual_clock_out: string
+          created_at: string
+          employee_id: string
+          id: string
+          notes: string | null
+          overtime_minutes: number
+          reviewed_at: string | null
+          reviewed_by: string | null
+          scheduled_end_time: string
+          status: string
+          time_entry_id: string
+        }
+        Insert: {
+          actual_clock_out: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          notes?: string | null
+          overtime_minutes?: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          scheduled_end_time: string
+          status?: string
+          time_entry_id: string
+        }
+        Update: {
+          actual_clock_out?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          overtime_minutes?: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          scheduled_end_time?: string
+          status?: string
+          time_entry_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "overtime_verifications_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "overtime_verifications_time_entry_id_fkey"
+            columns: ["time_entry_id"]
+            isOneToOne: false
+            referencedRelation: "time_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -290,6 +347,8 @@ export type Database = {
         Row: {
           absence_hours: number | null
           absence_type: Database["public"]["Enums"]["absence_type"] | null
+          adjusted_clock_in: string | null
+          adjusted_clock_out: string | null
           break_minutes: number | null
           clock_in: string | null
           clock_out: string | null
@@ -299,12 +358,15 @@ export type Database = {
           employee_id: string
           id: string
           notes: string | null
+          requires_overtime_approval: boolean | null
           status: Database["public"]["Enums"]["entry_status"] | null
           updated_at: string
         }
         Insert: {
           absence_hours?: number | null
           absence_type?: Database["public"]["Enums"]["absence_type"] | null
+          adjusted_clock_in?: string | null
+          adjusted_clock_out?: string | null
           break_minutes?: number | null
           clock_in?: string | null
           clock_out?: string | null
@@ -314,12 +376,15 @@ export type Database = {
           employee_id: string
           id?: string
           notes?: string | null
+          requires_overtime_approval?: boolean | null
           status?: Database["public"]["Enums"]["entry_status"] | null
           updated_at?: string
         }
         Update: {
           absence_hours?: number | null
           absence_type?: Database["public"]["Enums"]["absence_type"] | null
+          adjusted_clock_in?: string | null
+          adjusted_clock_out?: string | null
           break_minutes?: number | null
           clock_in?: string | null
           clock_out?: string | null
@@ -329,6 +394,7 @@ export type Database = {
           employee_id?: string
           id?: string
           notes?: string | null
+          requires_overtime_approval?: boolean | null
           status?: Database["public"]["Enums"]["entry_status"] | null
           updated_at?: string
         }

@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { calculateEffectiveHours, checkRestTimeViolation, formatTime, formatHoursMinutes } from '@/lib/lgav';
-import { Clock, Play, Square, Coffee, AlertTriangle, UserPlus } from 'lucide-react';
+import { useScheduledShift, getAdjustedClockIn, checkOvertimeClockOut } from '@/hooks/useScheduledShift';
+import { Clock, Play, Square, Coffee, AlertTriangle, UserPlus, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 type AbsenceType = 'vacation' | 'sick' | 'accident' | 'holiday' | 'military' | 'other';
@@ -29,8 +30,10 @@ export default function Dashboard() {
   const [absenceHours, setAbsenceHours] = useState('8');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [pendingVerifications, setPendingVerifications] = useState<any[]>([]);
 
   const currentEmployeeId = selectedEmployeeId || employeeId;
+  const { shift: scheduledShift } = useScheduledShift(currentEmployeeId);
 
   // Update clock every second
   useEffect(() => {
@@ -48,6 +51,13 @@ export default function Dashboard() {
             setSelectedEmployeeId(data[0].id);
           }
         });
+      // Load pending verifications for admin
+      supabase
+        .from('overtime_verifications')
+        .select('*, employees(first_name, last_name), time_entries(date, clock_in, clock_out)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+        .then(({ data }) => setPendingVerifications(data || []));
     }
   }, [isAdmin]);
 
@@ -107,12 +117,16 @@ export default function Dashboard() {
     const now = new Date();
     const today = now.toISOString().split('T')[0];
 
+    // Check shift-based adjustment
+    const { adjustedTime, wasEarly } = getAdjustedClockIn(now, scheduledShift?.startTime || null);
+
     const { data, error } = await supabase
       .from('time_entries')
       .insert({
         employee_id: currentEmployeeId,
         date: today,
         clock_in: now.toISOString(),
+        adjusted_clock_in: wasEarly ? adjustedTime.toISOString() : null,
         effective_hours: 0,
       })
       .select()
@@ -126,7 +140,15 @@ export default function Dashboard() {
     setActiveEntry(data);
     setIsClockedIn(true);
     setTodayEntries(prev => [...prev, data]);
-    toast.success(`Eingestempelt um ${formatTime(now)}`);
+
+    if (wasEarly && scheduledShift) {
+      toast.info(
+        `Eingestempelt um ${formatTime(now)} — Dienstbeginn erst um ${scheduledShift.startTime}. Effektive Zeit wird ab Dienstbeginn berechnet.`,
+        { duration: 6000 }
+      );
+    } else {
+      toast.success(`Eingestempelt um ${formatTime(now)}`);
+    }
   };
 
   const handleClockOut = async () => {
@@ -134,14 +156,23 @@ export default function Dashboard() {
 
     const now = new Date();
     const breaks = parseInt(breakMinutes) || 0;
-    const effective = calculateEffectiveHours(activeEntry.clock_in, now, breaks);
+
+    // Use adjusted clock-in if available for effective hours calculation
+    const effectiveStart = activeEntry.adjusted_clock_in || activeEntry.clock_in;
+    const effective = calculateEffectiveHours(effectiveStart, now, breaks);
+
+    // Check overtime against scheduled shift end
+    const overtime = checkOvertimeClockOut(now, scheduledShift?.endTime || null);
+    const requiresApproval = overtime.isOvertime && overtime.overtimeMinutes > 5; // 5 min tolerance
 
     const { error } = await supabase
       .from('time_entries')
       .update({
         clock_out: now.toISOString(),
+        adjusted_clock_out: requiresApproval ? null : undefined,
         break_minutes: breaks,
         effective_hours: effective,
+        requires_overtime_approval: requiresApproval,
       })
       .eq('id', activeEntry.id);
 
@@ -150,16 +181,35 @@ export default function Dashboard() {
       return;
     }
 
+    // Create overtime verification request if needed
+    if (requiresApproval && scheduledShift?.endTime) {
+      await supabase.from('overtime_verifications').insert({
+        time_entry_id: activeEntry.id,
+        employee_id: currentEmployeeId!,
+        scheduled_end_time: scheduledShift.endTime,
+        actual_clock_out: now.toISOString(),
+        overtime_minutes: overtime.overtimeMinutes,
+      });
+    }
+
     setIsClockedIn(false);
     setActiveEntry(null);
     setBreakMinutes('');
     setTodayEntries(prev =>
       prev.map(e => e.id === activeEntry.id
-        ? { ...e, clock_out: now.toISOString(), break_minutes: breaks, effective_hours: effective }
+        ? { ...e, clock_out: now.toISOString(), break_minutes: breaks, effective_hours: effective, requires_overtime_approval: requiresApproval }
         : e
       )
     );
-    toast.success(`Ausgestempelt um ${formatTime(now)} — ${formatHoursMinutes(effective)} gearbeitet`);
+
+    if (requiresApproval) {
+      toast.warning(
+        `Ausgestempelt um ${formatTime(now)} — ${overtime.overtimeMinutes} Min. Überzeit nach Dienstende (${scheduledShift?.endTime}). Verifizierung an Admin gesendet.`,
+        { duration: 8000 }
+      );
+    } else {
+      toast.success(`Ausgestempelt um ${formatTime(now)} — ${formatHoursMinutes(effective)} gearbeitet`);
+    }
   };
 
   const handleAbsence = async () => {
@@ -185,7 +235,6 @@ export default function Dashboard() {
 
     setAbsenceMode(false);
     toast.success('Absenz erfasst');
-    // Reload
     const { data } = await supabase
       .from('time_entries')
       .select('*')
@@ -193,6 +242,16 @@ export default function Dashboard() {
       .eq('date', today)
       .order('created_at', { ascending: true });
     setTodayEntries(data || []);
+  };
+
+  const handleVerification = async (id: string, status: 'approved' | 'rejected') => {
+    await supabase
+      .from('overtime_verifications')
+      .update({ status, reviewed_by: user?.id, reviewed_at: new Date().toISOString() })
+      .eq('id', id);
+
+    setPendingVerifications(prev => prev.filter(v => v.id !== id));
+    toast.success(status === 'approved' ? 'Überzeit genehmigt' : 'Überzeit abgelehnt');
   };
 
   const totalToday = todayEntries.reduce((sum, e) => sum + (e.effective_hours || 0), 0);
@@ -244,6 +303,45 @@ export default function Dashboard() {
         </Card>
       )}
 
+      {/* Admin: Pending overtime verifications */}
+      {isAdmin && pendingVerifications.length > 0 && (
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5 text-destructive" />
+              Überzeit-Verifizierungen ({pendingVerifications.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {pendingVerifications.map(v => {
+              const emp = v.employees as any;
+              const entry = v.time_entries as any;
+              return (
+                <div key={v.id} className="flex items-center justify-between rounded-lg border p-3 bg-background">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">
+                      {emp?.first_name} {emp?.last_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {entry?.date} — Dienstende: {v.scheduled_end_time?.substring(0, 5)} · 
+                      Ausgestempelt: {formatTime(v.actual_clock_out)} · 
+                      <span className="font-medium text-destructive"> +{v.overtime_minutes} Min.</span>
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => handleVerification(v.id, 'rejected')}>
+                      Ablehnen
+                    </Button>
+                    <Button size="sm" onClick={() => handleVerification(v.id, 'approved')}>
+                      Genehmigen
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       <AnimatePresence>
         {restWarning && (
@@ -273,6 +371,33 @@ export default function Dashboard() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Scheduled shift info */}
+      {scheduledShift && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="flex items-center gap-3 py-3">
+            <ShieldCheck className="h-5 w-5 text-primary" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">
+                Geplanter Dienst: <span className="font-bold">{scheduledShift.shiftName}</span>
+                {scheduledShift.startTime && scheduledShift.endTime && (
+                  <span className="text-muted-foreground ml-2">
+                    {scheduledShift.startTime} – {scheduledShift.endTime}
+                  </span>
+                )}
+              </p>
+              {scheduledShift.startTime && (
+                <p className="text-xs text-muted-foreground">
+                  Stempelzeit wird ab Dienstbeginn berechnet · Überzeit nach Dienstende erfordert Admin-Freigabe
+                </p>
+              )}
+            </div>
+            <Badge style={{ backgroundColor: scheduledShift.color, color: '#fff' }}>
+              {scheduledShift.shortCode}
+            </Badge>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Clock In/Out */}
       <div className="grid gap-3">
@@ -313,6 +438,11 @@ export default function Dashboard() {
               <p className="text-center text-sm text-muted-foreground animate-pulse-slow">
                 <Clock className="mr-1 inline h-4 w-4" />
                 Eingestempelt seit {formatTime(activeEntry.clock_in)}
+                {activeEntry.adjusted_clock_in && (
+                  <span className="block text-xs text-primary">
+                    Effektiv ab {formatTime(activeEntry.adjusted_clock_in)} (Dienstbeginn)
+                  </span>
+                )}
               </p>
             )}
           </div>
@@ -401,6 +531,9 @@ export default function Dashboard() {
                     ) : (
                       <div className="text-sm">
                         <span className="font-medium">{entry.clock_in ? formatTime(entry.clock_in) : '–'}</span>
+                        {entry.adjusted_clock_in && (
+                          <span className="text-xs text-primary ml-1">(eff. {formatTime(entry.adjusted_clock_in)})</span>
+                        )}
                         <span className="text-muted-foreground"> — </span>
                         <span className="font-medium">{entry.clock_out ? formatTime(entry.clock_out) : '...'}</span>
                         {entry.break_minutes > 0 && (
@@ -411,11 +544,14 @@ export default function Dashboard() {
                       </div>
                     )}
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex items-center gap-2">
                     <span className="font-heading font-semibold">
                       {formatHoursMinutes(entry.effective_hours || 0)}
                     </span>
-                    <Badge variant={entry.status === 'approved' ? 'default' : 'secondary'} className="ml-2 text-xs">
+                    {entry.requires_overtime_approval && (
+                      <Badge variant="destructive" className="text-xs">ÜZ</Badge>
+                    )}
+                    <Badge variant={entry.status === 'approved' ? 'default' : 'secondary'} className="text-xs">
                       {entry.status === 'approved' ? '✓' : entry.status === 'rejected' ? '✗' : '○'}
                     </Badge>
                   </div>
