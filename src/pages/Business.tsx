@@ -143,6 +143,13 @@ export default function Business() {
     }));
   };
 
+  const updateShiftsForDay = (dayKey: number, value: number) => {
+    setData(prev => ({
+      ...prev,
+      shifts_per_day: { ...prev.shifts_per_day, [dayKey]: Math.max(0, value) },
+    }));
+  };
+
   return (
     <div className="space-y-6 pb-20 md:pb-4">
       <div className="flex items-center gap-3">
