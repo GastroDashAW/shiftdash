@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, Printer } from 'lucide-react';
 import { validateSchedule, LgavViolation } from '@/lib/lgav-schedule-validation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ShiftType {
   id: string;
@@ -42,7 +43,6 @@ interface ScheduleEvent {
 
 const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
-// Position hierarchy for sorting (lower = higher rank)
 const POSITION_HIERARCHY: Record<string, number> = {
   'Geschäftsführer': 1, 'Direktor': 2, 'Betriebsleiter': 3,
   'Küchenchef': 10, 'Sous-Chef': 11, 'Chef de Partie': 12, 'Demichef': 13, 'Commis': 14, 'Koch': 15, 'Hilfskoch': 16,
@@ -54,16 +54,16 @@ const POSITION_HIERARCHY: Record<string, number> = {
 function getPositionOrder(position: string): number {
   const normalized = position.trim();
   if (POSITION_HIERARCHY[normalized] !== undefined) return POSITION_HIERARCHY[normalized];
-  // Try partial match
   for (const [key, val] of Object.entries(POSITION_HIERARCHY)) {
     if (normalized.toLowerCase().includes(key.toLowerCase())) return val;
   }
-  return 50; // default mid-rank
+  return 50;
 }
 
 type DragData = { type: 'palette'; shiftId: string } | { type: 'cell'; assignmentId: string; shiftId: string; employeeId: string; day: number };
 
 export default function Schedule() {
+  const { isAdmin } = useAuth();
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth());
   const [shiftTypes, setShiftTypes] = useState<ShiftType[]>([]);
@@ -88,7 +88,6 @@ export default function Schedule() {
       supabase.from('schedule_events').select('*').gte('date', startDate).lte('date', endDate),
     ]);
 
-    // Sort employees by cost_center then position hierarchy
     const sorted = (empRes.data || []).sort((a, b) => {
       const ccCompare = (a.cost_center || '').localeCompare(b.cost_center || '');
       if (ccCompare !== 0) return ccCompare;
@@ -103,11 +102,11 @@ export default function Schedule() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // L-GAV validation
+  // L-GAV validation (only computed for admin)
   const violations = useMemo(() => {
-    if (employees.length === 0 || shiftTypes.length === 0) return [];
+    if (!isAdmin || employees.length === 0 || shiftTypes.length === 0) return [];
     return validateSchedule(assignments, employees, shiftTypes, year, month);
-  }, [assignments, employees, shiftTypes, year, month]);
+  }, [assignments, employees, shiftTypes, year, month, isAdmin]);
 
   const violationCells = useMemo(() => {
     const cells = new Set<string>();
@@ -129,13 +128,15 @@ export default function Schedule() {
     return events.find(e => e.date === dateStr);
   };
 
-  // Drag handlers supporting both palette and cell-to-cell
+  // Drag handlers (admin only)
   const handlePaletteDragStart = (e: DragEvent, shiftId: string) => {
+    if (!isAdmin) return;
     e.dataTransfer.setData('application/json', JSON.stringify({ type: 'palette', shiftId }));
     e.dataTransfer.effectAllowed = 'copyMove';
   };
 
   const handleCellDragStart = (e: DragEvent, assignment: Assignment) => {
+    if (!isAdmin) { e.preventDefault(); return; }
     const data: DragData = {
       type: 'cell',
       assignmentId: assignment.id,
@@ -148,11 +149,13 @@ export default function Schedule() {
   };
 
   const handleDragOver = (e: DragEvent) => {
+    if (!isAdmin) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
   };
 
   const handleDrop = async (e: DragEvent, employeeId: string, day: number) => {
+    if (!isAdmin) return;
     e.preventDefault();
     let data: DragData;
     try {
@@ -165,31 +168,18 @@ export default function Schedule() {
     const existing = getAssignment(employeeId, day);
 
     if (data.type === 'cell') {
-      // Moving from another cell
-      // If dropping on same cell, do nothing
       if (data.employeeId === employeeId && data.day === day) return;
-
-      // Delete old assignment
       await supabase.from('schedule_assignments').delete().eq('id', data.assignmentId);
-
-      // Upsert new
       if (existing) {
-        await supabase.from('schedule_assignments')
-          .update({ shift_type_id: data.shiftId })
-          .eq('id', existing.id);
+        await supabase.from('schedule_assignments').update({ shift_type_id: data.shiftId }).eq('id', existing.id);
       } else {
-        await supabase.from('schedule_assignments')
-          .insert({ employee_id: employeeId, date: dateStr, shift_type_id: data.shiftId });
+        await supabase.from('schedule_assignments').insert({ employee_id: employeeId, date: dateStr, shift_type_id: data.shiftId });
       }
     } else {
-      // From palette
       if (existing) {
-        await supabase.from('schedule_assignments')
-          .update({ shift_type_id: data.shiftId })
-          .eq('id', existing.id);
+        await supabase.from('schedule_assignments').update({ shift_type_id: data.shiftId }).eq('id', existing.id);
       } else {
-        await supabase.from('schedule_assignments')
-          .insert({ employee_id: employeeId, date: dateStr, shift_type_id: data.shiftId });
+        await supabase.from('schedule_assignments').insert({ employee_id: employeeId, date: dateStr, shift_type_id: data.shiftId });
       }
     }
 
@@ -197,12 +187,13 @@ export default function Schedule() {
   };
 
   const removeAssignment = async (assignmentId: string) => {
+    if (!isAdmin) return;
     await supabase.from('schedule_assignments').delete().eq('id', assignmentId);
     loadData();
   };
 
-  // Event handling
   const saveEvent = async (day: number) => {
+    if (!isAdmin) return;
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const existing = getEvent(day);
 
@@ -241,20 +232,17 @@ export default function Schedule() {
     else setMonth(m => m + 1);
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const violationTypeLabels: Record<string, string> = {
     rest_time: 'Ruhezeit', weekly_rest: 'Ruhetag', weekly_hours: 'Wochenstunden',
     consecutive_days: 'Arbeitstage', daily_hours: 'Tagesarbeitszeit',
     rest_days_month: 'Ruhetage/Monat', max_weekly_hours: 'Höchstarbeitszeit',
     reduced_rest: 'Red. Ruhezeit',
   };
-  const violationTypeColors: Record<string, string> = {
-    rest_time: 'text-destructive', weekly_rest: 'text-warning', weekly_hours: 'text-warning',
-    consecutive_days: 'text-destructive', daily_hours: 'text-destructive',
-    rest_days_month: 'text-warning', max_weekly_hours: 'text-destructive',
-    reduced_rest: 'text-destructive',
-  };
 
-  // Group employees by cost center for display
   const costCenterGroups = useMemo(() => {
     const groups: { costCenter: string; employees: Employee[] }[] = [];
     let current = '';
@@ -272,115 +260,130 @@ export default function Schedule() {
     return groups;
   }, [employees]);
 
+  const formatTime = (t: string | null) => t ? t.slice(0, 5) : '';
+
   return (
-    <div className="space-y-4 pb-20 md:pb-4">
-      <div className="flex items-center justify-between">
-        <h1 className="font-heading text-2xl font-bold">Dienstplan</h1>
+    <div className="space-y-4 pb-20 md:pb-4 print:pb-0 print:space-y-2">
+      {/* Header */}
+      <div className="flex items-center justify-between print:mb-2">
+        <h1 className="font-heading text-2xl font-bold print:text-xl">Dienstplan</h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={prevMonth}><ChevronLeft className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" onClick={handlePrint} className="print:hidden" title="Drucken">
+            <Printer className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={prevMonth} className="print:hidden"><ChevronLeft className="h-4 w-4" /></Button>
           <span className="font-heading font-semibold min-w-[140px] text-center">{MONTHS[month]} {year}</span>
-          <Button variant="outline" size="icon" onClick={nextMonth}><ChevronRight className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" onClick={nextMonth} className="print:hidden"><ChevronRight className="h-4 w-4" /></Button>
         </div>
       </div>
 
-      {/* L-GAV Compliance Panel */}
-      <Card className={violations.length > 0 ? (violations.some(v => v.severity === 'error') ? 'border-destructive/50' : 'border-warning/50') : 'border-success/50'}>
-        <CardHeader className="py-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              {violations.length > 0 ? (
-                <>
-                  <AlertTriangle className={`h-4 w-4 ${violations.some(v => v.severity === 'error') ? 'text-destructive' : 'text-warning'}`} />
-                  <span className={violations.some(v => v.severity === 'error') ? 'text-destructive' : 'text-warning'}>
-                    {violations.filter(v => v.severity === 'error').length} Fehler, {violations.filter(v => v.severity === 'warning').length} Warnungen (ArG / L-GAV)
-                  </span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4 text-success" />
-                  <span className="text-success">ArG / L-GAV konform ✓</span>
-                </>
+      {/* L-GAV Compliance Panel – admin only */}
+      {isAdmin && (
+        <Card className={`print:hidden ${violations.length > 0 ? (violations.some(v => v.severity === 'error') ? 'border-destructive/50' : 'border-warning/50') : 'border-success/50'}`}>
+          <CardHeader className="py-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                {violations.length > 0 ? (
+                  <>
+                    <AlertTriangle className={`h-4 w-4 ${violations.some(v => v.severity === 'error') ? 'text-destructive' : 'text-warning'}`} />
+                    <span className={violations.some(v => v.severity === 'error') ? 'text-destructive' : 'text-warning'}>
+                      {violations.filter(v => v.severity === 'error').length} Fehler, {violations.filter(v => v.severity === 'warning').length} Warnungen (ArG / L-GAV)
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 text-success" />
+                    <span className="text-success">ArG / L-GAV konform ✓</span>
+                  </>
+                )}
+              </CardTitle>
+              {violations.length > 0 && (
+                <Button variant="ghost" size="sm" onClick={() => setShowViolations(!showViolations)}>
+                  {showViolations ? 'Ausblenden' : 'Anzeigen'}
+                </Button>
               )}
-            </CardTitle>
-            {violations.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={() => setShowViolations(!showViolations)}>
-                {showViolations ? 'Ausblenden' : 'Anzeigen'}
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <AnimatePresence>
-          {showViolations && violations.length > 0 && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-              <CardContent className="pt-0 pb-3">
-                <div className="space-y-1.5 max-h-48 overflow-y-auto">
-                  {violations.map((v, i) => (
-                    <div key={i} className={`flex items-start gap-2 rounded-md border p-2 text-xs ${v.severity === 'error' ? 'bg-destructive/5 border-destructive/20' : 'bg-warning/5 border-warning/20'}`}>
-                      <AlertTriangle className={`mt-0.5 h-3 w-3 shrink-0 ${v.severity === 'error' ? 'text-destructive' : 'text-warning'}`} />
-                      <div className="flex-1">
-                        <span className="font-medium">{v.employeeName}</span>
-                        <Badge variant={v.severity === 'error' ? 'destructive' : 'outline'} className="ml-2 text-[10px] px-1 py-0">{violationTypeLabels[v.type]}</Badge>
-                        <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0 font-mono">{v.law}</Badge>
-                        <p className="mt-0.5 text-muted-foreground">{v.message}</p>
+            </div>
+          </CardHeader>
+          <AnimatePresence>
+            {showViolations && violations.length > 0 && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                <CardContent className="pt-0 pb-3">
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {violations.map((v, i) => (
+                      <div key={i} className={`flex items-start gap-2 rounded-md border p-2 text-xs ${v.severity === 'error' ? 'bg-destructive/5 border-destructive/20' : 'bg-warning/5 border-warning/20'}`}>
+                        <AlertTriangle className={`mt-0.5 h-3 w-3 shrink-0 ${v.severity === 'error' ? 'text-destructive' : 'text-warning'}`} />
+                        <div className="flex-1">
+                          <span className="font-medium">{v.employeeName}</span>
+                          <Badge variant={v.severity === 'error' ? 'destructive' : 'outline'} className="ml-2 text-[10px] px-1 py-0">{violationTypeLabels[v.type]}</Badge>
+                          <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0 font-mono">{v.law}</Badge>
+                          <p className="mt-0.5 text-muted-foreground">{v.message}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Card>
+      )}
 
-      {/* Shift palette */}
-      <Card>
-        <CardHeader className="py-3">
-          <CardTitle className="text-sm">Dienste (ziehen & ablegen)</CardTitle>
+      {/* Shift legend with times */}
+      <Card className="print:border print:shadow-none">
+        <CardHeader className="py-3 print:py-1">
+          <CardTitle className="text-sm print:text-xs">
+            {isAdmin ? 'Dienste (ziehen & ablegen)' : 'Legende'}
+          </CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-2 pb-3">
+        <CardContent className="flex flex-wrap gap-2 pb-3 print:pb-2 print:gap-1">
           {shiftTypes.map(shift => (
             <div
               key={shift.id}
-              draggable
-              onDragStart={e => handlePaletteDragStart(e, shift.id)}
-              className="flex cursor-grab items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-shadow hover:shadow-md active:cursor-grabbing"
+              draggable={isAdmin}
+              onDragStart={isAdmin ? e => handlePaletteDragStart(e, shift.id) : undefined}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-shadow print:px-2 print:py-1 print:text-[10px] ${isAdmin ? 'cursor-grab hover:shadow-md active:cursor-grabbing' : 'cursor-default'}`}
               style={{ borderColor: shift.color, backgroundColor: shift.color + '15' }}
             >
-              <div className="h-4 w-4 rounded" style={{ backgroundColor: shift.color }} />
-              <span>{shift.short_code}</span>
-              <span className="hidden text-xs text-muted-foreground sm:inline">{shift.name}</span>
+              <div className="h-4 w-4 rounded shrink-0 print:h-3 print:w-3" style={{ backgroundColor: shift.color }} />
+              <span className="font-bold">{shift.short_code}</span>
+              <span className="text-xs text-muted-foreground print:text-[9px]">
+                {shift.name}
+                {shift.start_time && shift.end_time && (
+                  <span className="ml-1 font-mono">({formatTime(shift.start_time)}–{formatTime(shift.end_time)})</span>
+                )}
+              </span>
             </div>
           ))}
         </CardContent>
       </Card>
 
       {/* Matrix */}
-      <Card>
+      <Card className="print:border print:shadow-none">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+          <div className="overflow-x-auto print:overflow-visible">
+            <table className="w-full text-xs print:text-[9px]">
               <thead>
                 <tr className="border-b">
-                  <th className="sticky left-0 z-10 min-w-[140px] bg-card px-3 py-2 text-left font-medium text-muted-foreground">
+                  <th className="sticky left-0 z-10 min-w-[140px] bg-card px-3 py-2 text-left font-medium text-muted-foreground print:static print:min-w-[100px] print:px-1 print:py-1">
                     Mitarbeiter
                   </th>
                   {days.map(day => (
-                    <th key={day} className={`min-w-[40px] px-1 py-2 text-center font-medium ${isWeekend(day) ? 'bg-muted/50 text-muted-foreground' : ''}`}>
-                      <div className="text-[10px] text-muted-foreground">{getDayOfWeek(day)}</div>
+                    <th key={day} className={`min-w-[40px] px-1 py-2 text-center font-medium print:min-w-[22px] print:px-0 print:py-1 ${isWeekend(day) ? 'bg-muted/50 text-muted-foreground' : ''}`}>
+                      <div className="text-[10px] text-muted-foreground print:text-[8px]">{getDayOfWeek(day)}</div>
                       <div>{day}</div>
                     </th>
                   ))}
                 </tr>
                 {/* Events row */}
                 <tr className="border-b bg-accent/10">
-                  <th className="sticky left-0 z-10 bg-accent/10 px-3 py-1 text-left text-[10px] font-medium text-foreground">
+                  <th className="sticky left-0 z-10 bg-accent/10 px-3 py-1 text-left text-[10px] font-medium text-foreground print:static print:px-1 print:text-[8px]">
                     Anlass
                   </th>
                   {days.map(day => {
                     const ev = getEvent(day);
                     return (
-                      <td key={day} className="px-0.5 py-1 text-center min-w-[40px]">
-                        {editingEventDay === day ? (
+                      <td key={day} className="px-0.5 py-1 text-center min-w-[40px] print:min-w-[22px] print:px-0">
+                        {isAdmin && editingEventDay === day ? (
                           <Input
                             className="h-5 w-full min-w-[36px] text-[9px] px-1 py-0"
                             value={eventText}
@@ -391,9 +394,9 @@ export default function Schedule() {
                           />
                         ) : (
                           <div
-                            className="mx-auto min-h-[18px] cursor-pointer rounded px-0.5 text-[9px] leading-tight text-foreground hover:bg-accent/30 truncate max-w-[38px]"
-                            title={ev?.label || 'Klicken zum Eintragen'}
-                            onClick={() => { setEditingEventDay(day); setEventText(ev?.label || ''); }}
+                            className={`mx-auto min-h-[18px] rounded px-0.5 text-[9px] leading-tight text-foreground truncate max-w-[38px] print:text-[7px] print:max-w-[20px] ${isAdmin ? 'cursor-pointer hover:bg-accent/30' : ''}`}
+                            title={ev?.label || (isAdmin ? 'Klicken zum Eintragen' : '')}
+                            onClick={isAdmin ? () => { setEditingEventDay(day); setEventText(ev?.label || ''); } : undefined}
                           >
                             {ev?.label || ''}
                           </div>
@@ -406,47 +409,52 @@ export default function Schedule() {
               <tbody>
                 {costCenterGroups.map(group => (
                   <>
-                    {/* Cost center separator */}
                     <tr key={`cc-${group.costCenter}`} className="bg-muted/40">
-                      <td colSpan={daysInMonth + 1} className="sticky left-0 px-3 py-1 text-[10px] font-heading font-semibold uppercase tracking-wider text-muted-foreground">
+                      <td colSpan={daysInMonth + 1} className="sticky left-0 px-3 py-1 text-[10px] font-heading font-semibold uppercase tracking-wider text-muted-foreground print:static print:px-1 print:text-[8px]">
                         {group.costCenter || 'Ohne Kostenstelle'}
                       </td>
                     </tr>
                     {group.employees.map(emp => (
-                      <tr key={emp.id} className="border-b last:border-0 hover:bg-muted/30">
-                        <td className="sticky left-0 z-10 bg-card px-3 py-2 whitespace-nowrap">
-                          <div className="font-medium text-xs">{emp.first_name} {emp.last_name}</div>
-                          <div className="text-[10px] text-muted-foreground">{emp.position}</div>
+                      <tr key={emp.id} className="border-b last:border-0 hover:bg-muted/30 print:hover:bg-transparent">
+                        <td className="sticky left-0 z-10 bg-card px-3 py-2 whitespace-nowrap print:static print:px-1 print:py-1">
+                          <div className="font-medium text-xs print:text-[9px]">{emp.first_name} {emp.last_name}</div>
+                          <div className="text-[10px] text-muted-foreground print:text-[8px]">{emp.position}</div>
                         </td>
                         {days.map(day => {
                           const assignment = getAssignment(emp.id, day);
                           const shift = assignment ? getShiftById(assignment.shift_type_id) : null;
-                          const hasViolation = violationCells.has(`${emp.id}-${day}`);
+                          const hasViolation = isAdmin && violationCells.has(`${emp.id}-${day}`);
                           return (
                             <td
                               key={day}
-                              className={`px-0.5 py-1 text-center ${isWeekend(day) ? 'bg-muted/30' : ''} ${hasViolation ? 'bg-destructive/10' : ''}`}
-                              onDragOver={handleDragOver}
-                              onDrop={e => handleDrop(e, emp.id, day)}
+                              className={`px-0.5 py-1 text-center print:px-0 print:py-0.5 ${isWeekend(day) ? 'bg-muted/30' : ''} ${hasViolation ? 'bg-destructive/10' : ''}`}
+                              onDragOver={isAdmin ? handleDragOver : undefined}
+                              onDrop={isAdmin ? e => handleDrop(e, emp.id, day) : undefined}
                             >
                               {shift ? (
                                 <div
-                                  draggable
-                                  onDragStart={e => handleCellDragStart(e, assignment!)}
-                                  className={`group relative mx-auto flex h-7 w-8 items-center justify-center rounded text-[10px] font-bold text-white cursor-grab active:cursor-grabbing ${hasViolation ? 'ring-2 ring-destructive ring-offset-1' : ''}`}
+                                  draggable={isAdmin}
+                                  onDragStart={isAdmin ? e => handleCellDragStart(e, assignment!) : undefined}
+                                  className={`group relative mx-auto flex h-7 w-8 items-center justify-center rounded text-[10px] font-bold text-white print:h-5 print:w-6 print:text-[8px] ${isAdmin ? 'cursor-grab active:cursor-grabbing' : ''} ${hasViolation ? 'ring-2 ring-destructive ring-offset-1' : ''}`}
                                   style={{ backgroundColor: shift.color }}
-                                  title={`${shift.name}${shift.start_time ? ` (${shift.start_time.slice(0,5)}–${shift.end_time?.slice(0,5)})` : ''}${hasViolation ? ' ⚠️ L-GAV Verstoss' : ''}`}
+                                  title={`${shift.name}${shift.start_time ? ` (${formatTime(shift.start_time)}–${formatTime(shift.end_time)})` : ''}${hasViolation ? ' ⚠️ L-GAV Verstoss' : ''}`}
                                 >
                                   {shift.short_code}
-                                  <div
-                                    className="absolute -right-1 -top-1 hidden h-3 w-3 items-center justify-center rounded-full bg-destructive text-[8px] text-destructive-foreground group-hover:flex"
-                                    onClick={(e) => { e.stopPropagation(); removeAssignment(assignment!.id); }}
-                                  >
-                                    ×
-                                  </div>
+                                  {isAdmin && (
+                                    <div
+                                      className="absolute -right-1 -top-1 hidden h-3 w-3 items-center justify-center rounded-full bg-destructive text-[8px] text-destructive-foreground group-hover:flex print:hidden"
+                                      onClick={(e) => { e.stopPropagation(); removeAssignment(assignment!.id); }}
+                                    >
+                                      ×
+                                    </div>
+                                  )}
                                 </div>
                               ) : (
-                                <div className="mx-auto h-7 w-8 rounded border border-dashed border-border/50" />
+                                isAdmin ? (
+                                  <div className="mx-auto h-7 w-8 rounded border border-dashed border-border/50 print:h-5 print:w-6" />
+                                ) : (
+                                  <div className="mx-auto h-7 w-8 print:h-5 print:w-6" />
+                                )
                               )}
                             </td>
                           );

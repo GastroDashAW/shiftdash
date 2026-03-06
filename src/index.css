@@ -117,3 +117,39 @@
     font-family: var(--font-body);
   }
 }
+
+@media print {
+  /* Hide navigation, sidebar, toasts */
+  nav, aside, header, [data-sonner-toaster], .print\:hidden {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 10px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Remove padding from layout */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Make table fit on page */
+  table {
+    page-break-inside: auto;
+  }
+  tr {
+    page-break-inside: avoid;
+  }
+
+  /* Landscape orientation for wide schedule */
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+}
