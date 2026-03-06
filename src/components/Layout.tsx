@@ -13,6 +13,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { to: '/', label: 'Dashboard', icon: LayoutDashboard, adminOnly: false },
     { to: '/clock', label: 'Stempeln', icon: Clock, adminOnly: false },
     { to: '/schedule', label: 'Dienstplan', icon: CalendarDays, adminOnly: false },
+    { to: '/leave', label: 'Abwesenheit', icon: CalendarPlus, adminOnly: false },
     { to: '/employees', label: 'Mitarbeiter', icon: Users, adminOnly: true },
     { to: '/shifts', label: 'Dienste', icon: Layers, adminOnly: true },
     { to: '/time-control', label: 'Tageskontrolle', icon: ClipboardCheck, adminOnly: true },

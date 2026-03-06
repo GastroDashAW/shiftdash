@@ -44,6 +44,7 @@ function AppContent() {
               <Route path="/" element={<AdminDashboard />} />
               <Route path="/clock" element={<Dashboard />} />
               <Route path="/schedule" element={<Schedule />} />
+              <Route path="/leave" element={<LeaveRequests />} />
               <Route path="/employees" element={<ProtectedRoute adminOnly><Employees /></ProtectedRoute>} />
               <Route path="/shifts" element={<ProtectedRoute adminOnly><ShiftTypes /></ProtectedRoute>} />
               <Route path="/time-control" element={<ProtectedRoute adminOnly><TimeControl /></ProtectedRoute>} />
