@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, Printer, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, Printer, Filter, Wand2 } from 'lucide-react';
 import { validateSchedule, LgavViolation } from '@/lib/lgav-schedule-validation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
@@ -377,6 +377,173 @@ export default function Schedule() {
 
   const formatTime = (t: string | null) => t ? t.slice(0, 5) : '';
 
+  const [autoGenerating, setAutoGenerating] = useState(false);
+
+  const handleAutoGenerate = async () => {
+    if (!isAdmin) return;
+    setAutoGenerating(true);
+
+    try {
+      // 1. Load shift plan config (required counts per shift per day)
+      const { data: configData } = await supabase.from('shift_plan_config').select('*');
+      if (!configData || configData.length === 0) {
+        toast.error('Kein Shift Plan konfiguriert. Bitte zuerst unter Dienste den Shift Plan festlegen.');
+        setAutoGenerating(false);
+        return;
+      }
+
+      // 2. Load business closed days
+      const { data: bizData } = await supabase.from('business_settings').select('closed_days').limit(1).maybeSingle();
+      const closedDays: number[] = Array.isArray(bizData?.closed_days) ? (bizData.closed_days as number[]) : [];
+
+      // 3. Load approved leave requests for this month
+      const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+      const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+      const { data: leaveData } = await supabase
+        .from('leave_requests')
+        .select('employee_id, start_date, end_date, request_type')
+        .eq('status', 'approved')
+        .lte('start_date', endDate)
+        .gte('end_date', startDate);
+
+      // Build set of employee-date combos that are on leave
+      const onLeave = new Set<string>();
+      const leaveShiftMap = new Map<string, string>(); // employee-date -> leave type
+      for (const lr of leaveData || []) {
+        const lStart = new Date(lr.start_date);
+        const lEnd = new Date(lr.end_date);
+        for (let d = new Date(lStart); d <= lEnd; d.setDate(d.getDate() + 1)) {
+          if (d.getMonth() === month && d.getFullYear() === year) {
+            const key = `${lr.employee_id}-${d.getDate()}`;
+            onLeave.add(key);
+            leaveShiftMap.set(key, lr.request_type);
+          }
+        }
+      }
+
+      // 4. Build config map: shiftTypeId -> dayOfWeek -> requiredCount
+      const configMap: Record<string, Record<number, number>> = {};
+      for (const row of configData) {
+        if (!configMap[row.shift_type_id]) configMap[row.shift_type_id] = {};
+        configMap[row.shift_type_id][row.day_of_week] = row.required_count;
+      }
+
+      // 5. Find special shift types
+      const freiShift = shiftTypes.find(s => s.short_code.toLowerCase() === 'f' || s.name.toLowerCase() === 'frei');
+      const ferienShift = shiftTypes.find(s => s.short_code === 'V' || s.name.toLowerCase() === 'ferien');
+
+      // 6. Get available employees with their available_days
+      const { data: empDetails } = await supabase
+        .from('employees')
+        .select('id, available_days, pensum_percent')
+        .eq('is_active', true);
+      const empAvailability = new Map<string, string[]>();
+      const dayLabels = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+      for (const emp of empDetails || []) {
+        const days = Array.isArray(emp.available_days) ? (emp.available_days as string[]) : ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
+        empAvailability.set(emp.id, days);
+      }
+
+      // 7. Delete existing assignments for this month (fresh generation)
+      await supabase
+        .from('schedule_assignments')
+        .delete()
+        .gte('date', startDate)
+        .lte('date', endDate);
+
+      // 8. Generate assignments day by day
+      const newAssignments: { employee_id: string; date: string; shift_type_id: string }[] = [];
+      // Track how many shifts each employee has been assigned this month (for fair distribution)
+      const employeeShiftCount: Record<string, number> = {};
+      for (const emp of employees) employeeShiftCount[emp.id] = 0;
+
+      // Work shifts (those in the config)
+      const workShiftIds = Object.keys(configMap);
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const date = new Date(year, month, d);
+        const dow = date.getDay(); // 0=Sun
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const dayLabel = dayLabels[dow];
+
+        // Closed day: assign Frei to everyone
+        if (closedDays.includes(dow)) {
+          if (freiShift) {
+            for (const emp of employees) {
+              newAssignments.push({ employee_id: emp.id, date: dateStr, shift_type_id: freiShift.id });
+            }
+          }
+          continue;
+        }
+
+        // Track who is already assigned today
+        const assignedToday = new Set<string>();
+
+        // First: assign leave (Ferien) for employees on approved leave
+        for (const emp of employees) {
+          const leaveKey = `${emp.id}-${d}`;
+          if (onLeave.has(leaveKey) && ferienShift) {
+            newAssignments.push({ employee_id: emp.id, date: dateStr, shift_type_id: ferienShift.id });
+            assignedToday.add(emp.id);
+          }
+        }
+
+        // Second: fill work shifts based on config
+        for (const shiftId of workShiftIds) {
+          const required = configMap[shiftId]?.[dow] ?? 0;
+          if (required <= 0) continue;
+
+          // Get eligible employees: available on this day, not yet assigned, not on leave
+          const eligible = employees.filter(emp => {
+            if (assignedToday.has(emp.id)) return false;
+            const avail = empAvailability.get(emp.id) || [];
+            return avail.includes(dayLabel);
+          });
+
+          // Sort by least shifts assigned (fair distribution)
+          eligible.sort((a, b) => (employeeShiftCount[a.id] || 0) - (employeeShiftCount[b.id] || 0));
+
+          const toAssign = Math.min(required, eligible.length);
+          for (let i = 0; i < toAssign; i++) {
+            newAssignments.push({ employee_id: eligible[i].id, date: dateStr, shift_type_id: shiftId });
+            assignedToday.add(eligible[i].id);
+            employeeShiftCount[eligible[i].id] = (employeeShiftCount[eligible[i].id] || 0) + 1;
+          }
+        }
+
+        // Third: assign Frei to unassigned employees (not available this day or leftover)
+        if (freiShift) {
+          for (const emp of employees) {
+            if (!assignedToday.has(emp.id)) {
+              newAssignments.push({ employee_id: emp.id, date: dateStr, shift_type_id: freiShift.id });
+            }
+          }
+        }
+      }
+
+      // 9. Batch insert
+      if (newAssignments.length > 0) {
+        // Insert in chunks of 500
+        for (let i = 0; i < newAssignments.length; i += 500) {
+          const chunk = newAssignments.slice(i, i + 500);
+          const { error } = await supabase.from('schedule_assignments').insert(chunk);
+          if (error) {
+            toast.error('Fehler: ' + error.message);
+            setAutoGenerating(false);
+            return;
+          }
+        }
+      }
+
+      toast.success(`Dienstplan für ${MONTHS[month]} ${year} automatisch erstellt (${newAssignments.length} Einträge)`);
+      loadData();
+    } catch (err: any) {
+      toast.error('Fehler bei der automatischen Erstellung: ' + err.message);
+    }
+
+    setAutoGenerating(false);
+  };
+
   return (
     <div className="space-y-4 pb-20 md:pb-4 print:pb-0 print:space-y-2">
       {/* Header */}
@@ -505,6 +672,21 @@ export default function Schedule() {
           )}
         </CardContent>
       </Card>
+
+      {/* Auto-generate button – admin only */}
+      {isAdmin && (
+        <div className="print:hidden">
+          <Button
+            size="lg"
+            onClick={handleAutoGenerate}
+            disabled={autoGenerating}
+            className="w-full gap-3 text-base font-semibold py-6"
+          >
+            <Wand2 className="h-5 w-5" />
+            {autoGenerating ? 'Dienstplan wird erstellt...' : 'Automatisch erstellen'}
+          </Button>
+        </div>
+      )}
 
       {/* Matrix */}
       <Card className="print:border print:shadow-none">
