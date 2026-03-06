@@ -26,6 +26,7 @@ export type Database = {
           opening_days: string | null
           opening_hours: string | null
           phone: string | null
+          shifts_per_day: Json | null
           social_charges_percent: number | null
           updated_at: string
           url: string | null
@@ -42,6 +43,7 @@ export type Database = {
           opening_days?: string | null
           opening_hours?: string | null
           phone?: string | null
+          shifts_per_day?: Json | null
           social_charges_percent?: number | null
           updated_at?: string
           url?: string | null
@@ -58,6 +60,7 @@ export type Database = {
           opening_days?: string | null
           opening_hours?: string | null
           phone?: string | null
+          shifts_per_day?: Json | null
           social_charges_percent?: number | null
           updated_at?: string
           url?: string | null
