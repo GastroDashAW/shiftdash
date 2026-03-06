@@ -486,6 +486,35 @@ export type Database = {
         }
         Relationships: []
       }
+      shift_plan_config: {
+        Row: {
+          day_of_week: number
+          id: string
+          required_count: number
+          shift_type_id: string
+        }
+        Insert: {
+          day_of_week: number
+          id?: string
+          required_count?: number
+          shift_type_id: string
+        }
+        Update: {
+          day_of_week?: number
+          id?: string
+          required_count?: number
+          shift_type_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_plan_config_shift_type_id_fkey"
+            columns: ["shift_type_id"]
+            isOneToOne: false
+            referencedRelation: "shift_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shift_types: {
         Row: {
           color: string
