@@ -3,8 +3,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { KeyRound } from 'lucide-react';
-import { EmployeeForm, calcHourlyRate } from '@/pages/Employees';
+import { EmployeeForm, calcHourlyRate, ALL_WEEKDAYS } from '@/pages/Employees';
 
 type EmployeeType = 'fixed' | 'hourly';
 
@@ -20,6 +21,15 @@ interface EmployeeFormPanelProps {
 export function EmployeeFormPanel({ form, setForm, editingId, employees, creatingLogin, onSave }: EmployeeFormPanelProps) {
   const currentEmp = editingId ? employees.find(e => e.id === editingId) : null;
   const hasLogin = !!currentEmp?.user_id;
+
+  const toggleDay = (day: string) => {
+    setForm(f => ({
+      ...f,
+      available_days: f.available_days.includes(day)
+        ? f.available_days.filter(d => d !== day)
+        : [...f.available_days, day],
+    }));
+  };
 
   return (
     <div className="space-y-4 pt-4">
@@ -63,15 +73,48 @@ export function EmployeeFormPanel({ form, setForm, editingId, employees, creatin
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Anstellungstyp</Label>
+          <Select value={form.employee_type} onValueChange={(v) => setForm(f => ({ ...f, employee_type: v as EmployeeType }))}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="fixed">Fixangestellt (Monatslohn)</SelectItem>
+              <SelectItem value="hourly">Stundenlohn</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Pensum %</Label>
+          <Input
+            type="number"
+            min="0"
+            max="100"
+            value={form.pensum_percent}
+            onChange={e => setForm(f => ({ ...f, pensum_percent: e.target.value }))}
+          />
+        </div>
+      </div>
+
+      {/* Verfügbare Wochentage */}
       <div className="space-y-1.5">
-        <Label className="text-xs">Anstellungstyp</Label>
-        <Select value={form.employee_type} onValueChange={(v) => setForm(f => ({ ...f, employee_type: v as EmployeeType }))}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="fixed">Fixangestellt (Monatslohn)</SelectItem>
-            <SelectItem value="hourly">Stundenlohn</SelectItem>
-          </SelectContent>
-        </Select>
+        <Label className="text-xs">Verfügbare Arbeitstage</Label>
+        <div className="flex gap-1.5">
+          {ALL_WEEKDAYS.map(day => (
+            <button
+              key={day}
+              type="button"
+              onClick={() => toggleDay(day)}
+              className={`flex-1 py-1.5 rounded text-xs font-medium transition-colors ${
+                form.available_days.includes(day)
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              {day}
+            </button>
+          ))}
+        </div>
       </div>
 
       {form.employee_type === 'fixed' ? (

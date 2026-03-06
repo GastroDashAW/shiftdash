@@ -29,7 +29,11 @@ export interface EmployeeForm {
   position: string;
   login_email: string;
   login_password: string;
+  pensum_percent: string;
+  available_days: string[];
 }
+
+export const ALL_WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] as const;
 
 export const emptyForm: EmployeeForm = {
   first_name: '',
@@ -44,6 +48,8 @@ export const emptyForm: EmployeeForm = {
   position: '',
   login_email: '',
   login_password: '',
+  pensum_percent: '100',
+  available_days: ['Mo', 'Di', 'Mi', 'Do', 'Fr'],
 };
 
 // L-GAV: max monthly hours = weekly_hours × 4.33
@@ -110,6 +116,8 @@ export default function Employees() {
       vacation_surcharge_percent: parseFloat(form.vacation_surcharge_percent) || 8.33,
       cost_center: form.cost_center.trim(),
       position: form.position.trim(),
+      pensum_percent: parseFloat(form.pensum_percent) || 100,
+      available_days: form.available_days,
     };
 
     let savedId = editingId;
@@ -203,6 +211,8 @@ export default function Employees() {
       position: emp.position || '',
       login_email: emp.login_email || '',
       login_password: '',
+      pensum_percent: String(emp.pensum_percent ?? 100),
+      available_days: emp.available_days || ['Mo', 'Di', 'Mi', 'Do', 'Fr'],
     });
     setEditingId(emp.id);
     setSheetOpen(true);
@@ -276,21 +286,24 @@ export default function Employees() {
                         checked={emp.is_active !== false}
                         onCheckedChange={async (checked) => {
                           await supabase.from('employees').update({ is_active: !!checked }).eq('id', emp.id);
-                          toast.success(checked ? 'Mitarbeiter aktiviert' : 'Mitarbeiter deaktiviert');
+                          toast.success(checked ? 'Mitarbeiter aktiviert' : 'Mitarbeiter als ausgetreten markiert');
                           loadEmployees();
                         }}
                         className="mt-0.5"
-                        title={emp.is_active !== false ? 'Aktiv – klicken zum Deaktivieren' : 'Inaktiv – klicken zum Aktivieren'}
+                        title={emp.is_active !== false ? 'Aktiv – klicken für Austritt' : 'Ausgetreten – klicken zum Aktivieren'}
                       />
                       <div className="cursor-pointer flex-1 min-w-0" onClick={() => openEdit(emp)}>
                         <p className="font-heading font-semibold text-sm md:text-base truncate">
                           {emp.first_name} {emp.last_name}
                           {emp.is_active === false && (
-                            <Badge variant="secondary" className="ml-2 text-[10px] md:text-xs">inaktiv</Badge>
+                            <Badge variant="destructive" className="ml-2 text-[10px] md:text-xs">ausgetreten</Badge>
                           )}
                         </p>
                         <div className="mt-1 flex flex-wrap items-center gap-1 md:gap-2">
                           <Badge variant="outline" className="text-[10px] md:text-xs">{emp.position}</Badge>
+                          <Badge variant="outline" className="text-[10px] md:text-xs">
+                            {emp.pensum_percent ?? 100}%
+                          </Badge>
                           <Badge variant={emp.employee_type === 'fixed' ? 'default' : 'secondary'} className="text-[10px] md:text-xs">
                             {emp.employee_type === 'fixed' ? 'Fix' : 'Std'}
                           </Badge>
@@ -308,6 +321,20 @@ export default function Employees() {
                           {emp.hourly_rate && (
                             <span className="text-[10px] md:text-xs text-muted-foreground">CHF {Number(emp.hourly_rate).toFixed(2)}/h</span>
                           )}
+                        </div>
+                        <div className="mt-1 flex gap-0.5">
+                          {(['Mo','Di','Mi','Do','Fr','Sa','So'] as const).map(day => (
+                            <span
+                              key={day}
+                              className={`text-[9px] md:text-[10px] px-1 py-0.5 rounded ${
+                                (emp.available_days || ['Mo','Di','Mi','Do','Fr']).includes(day)
+                                  ? 'bg-primary/10 text-primary font-medium'
+                                  : 'text-muted-foreground/40'
+                              }`}
+                            >
+                              {day}
+                            </span>
+                          ))}
                         </div>
                       </div>
                     </div>
