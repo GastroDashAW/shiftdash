@@ -4,8 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, Printer } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, Printer, Filter } from 'lucide-react';
 import { validateSchedule, LgavViolation } from '@/lib/lgav-schedule-validation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
@@ -63,7 +65,7 @@ function getPositionOrder(position: string): number {
 type DragData = { type: 'palette'; shiftId: string } | { type: 'cell'; assignmentId: string; shiftId: string; employeeId: string; day: number };
 
 export default function Schedule() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, employeeId } = useAuth();
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth());
   const [shiftTypes, setShiftTypes] = useState<ShiftType[]>([]);
@@ -73,6 +75,10 @@ export default function Schedule() {
   const [showViolations, setShowViolations] = useState(true);
   const [editingEventDay, setEditingEventDay] = useState<number | null>(null);
   const [eventText, setEventText] = useState('');
+
+  // Admin: set of visible cost centers; Employee: view mode
+  const [hiddenCostCenters, setHiddenCostCenters] = useState<Set<string>>(new Set());
+  const [employeeViewMode, setEmployeeViewMode] = useState<'all' | 'my_cc' | 'my_shifts'>('all');
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
@@ -243,11 +249,38 @@ export default function Schedule() {
     reduced_rest: 'Red. Ruhezeit',
   };
 
+  const allCostCenters = useMemo(() => {
+    const seen = new Set<string>();
+    for (const emp of employees) seen.add(emp.cost_center || '');
+    return Array.from(seen);
+  }, [employees]);
+
+  // Find current employee's cost center
+  const myEmployee = useMemo(() => {
+    if (!employeeId) return null;
+    return employees.find(e => e.id === employeeId) || null;
+  }, [employees, employeeId]);
+
   const costCenterGroups = useMemo(() => {
     const groups: { costCenter: string; employees: Employee[] }[] = [];
     let current = '';
     let currentGroup: Employee[] = [];
-    for (const emp of employees) {
+
+    // Filter employees based on role and view mode
+    let filteredEmployees = employees;
+    if (isAdmin) {
+      filteredEmployees = employees.filter(emp => !hiddenCostCenters.has(emp.cost_center || ''));
+    } else {
+      if (employeeViewMode === 'my_cc' && myEmployee) {
+        filteredEmployees = employees.filter(emp => emp.cost_center === myEmployee.cost_center);
+      } else if (employeeViewMode === 'my_shifts' && employeeId) {
+        const myAssignedDates = new Set(assignments.filter(a => a.employee_id === employeeId).map(a => a.date));
+        // Show only own employee if they have assignments, otherwise show empty
+        filteredEmployees = employees.filter(emp => emp.id === employeeId);
+      }
+    }
+
+    for (const emp of filteredEmployees) {
       const cc = emp.cost_center || '';
       if (cc !== current) {
         if (currentGroup.length > 0) groups.push({ costCenter: current, employees: currentGroup });
@@ -258,7 +291,16 @@ export default function Schedule() {
     }
     if (currentGroup.length > 0) groups.push({ costCenter: current, employees: currentGroup });
     return groups;
-  }, [employees]);
+  }, [employees, isAdmin, hiddenCostCenters, employeeViewMode, myEmployee, employeeId, assignments]);
+
+  const toggleCostCenter = (cc: string) => {
+    setHiddenCostCenters(prev => {
+      const next = new Set(prev);
+      if (next.has(cc)) next.delete(cc);
+      else next.add(cc);
+      return next;
+    });
+  };
 
   const formatTime = (t: string | null) => t ? t.slice(0, 5) : '';
 
@@ -354,6 +396,40 @@ export default function Schedule() {
               </span>
             </div>
           ))}
+        </CardContent>
+      </Card>
+
+      {/* Filter bar */}
+      <Card className="print:hidden">
+        <CardContent className="py-3 flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Filter className="h-4 w-4" />
+            <span>Filter</span>
+          </div>
+          {isAdmin ? (
+            <div className="flex flex-wrap gap-3">
+              {allCostCenters.map(cc => (
+                <label key={cc} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                  <Checkbox
+                    checked={!hiddenCostCenters.has(cc)}
+                    onCheckedChange={() => toggleCostCenter(cc)}
+                  />
+                  <span>{cc || 'Ohne Kostenstelle'}</span>
+                </label>
+              ))}
+            </div>
+          ) : (
+            <Select value={employeeViewMode} onValueChange={(v) => setEmployeeViewMode(v as 'all' | 'my_cc' | 'my_shifts')}>
+              <SelectTrigger className="w-[200px] h-8 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Ganzer Dienstplan</SelectItem>
+                <SelectItem value="my_cc">Meine Kostenstelle</SelectItem>
+                <SelectItem value="my_shifts">Meine Dienste</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </CardContent>
       </Card>
 
