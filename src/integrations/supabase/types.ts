@@ -188,6 +188,59 @@ export type Database = {
         }
         Relationships: []
       }
+      leave_requests: {
+        Row: {
+          admin_note: string | null
+          created_at: string
+          days_count: number
+          employee_id: string
+          end_date: string
+          id: string
+          request_type: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_note?: string | null
+          created_at?: string
+          days_count?: number
+          employee_id: string
+          end_date: string
+          id?: string
+          request_type: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_note?: string | null
+          created_at?: string
+          days_count?: number
+          employee_id?: string
+          end_date?: string
+          id?: string
+          request_type?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       monthly_budgets: {
         Row: {
           created_at: string
