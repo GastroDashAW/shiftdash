@@ -58,7 +58,47 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { email, password, full_name, employee_id } = await req.json();
+    const body = await req.json();
+    const { action } = body;
+
+    if (action === "update") {
+      // Update existing user's email/password
+      const { user_id, email, password } = body;
+      if (!user_id) {
+        return new Response(JSON.stringify({ error: "Missing user_id" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const updates: Record<string, any> = {};
+      if (email) updates.email = email;
+      if (password) updates.password = password;
+
+      if (Object.keys(updates).length === 0) {
+        return new Response(JSON.stringify({ error: "Nothing to update" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: updatedUser, error: updateError } = await adminClient.auth.admin.updateUserById(user_id, updates);
+
+      if (updateError) {
+        return new Response(JSON.stringify({ error: updateError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ user_id: updatedUser.user.id }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Create new user
+    const { email, password, full_name, employee_id } = body;
 
     if (!email || !password || !employee_id) {
       return new Response(JSON.stringify({ error: "Missing fields" }), {

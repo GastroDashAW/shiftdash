@@ -106,10 +106,14 @@ export default function Employees() {
       savedId = data.id;
     }
 
-    // Create login if email & password provided and employee has no user_id yet
-    if (form.login_email && form.login_password && savedId) {
+    // Create or update login
+    if (savedId && (form.login_email || form.login_password)) {
       const emp = employees.find(e => e.id === savedId);
-      if (!emp?.user_id || !editingId) {
+      if (emp?.user_id) {
+        // Update existing user
+        await updateEmployeeLogin(emp.user_id, form.login_email, form.login_password);
+      } else if (form.login_email && form.login_password) {
+        // Create new user
         await createEmployeeLogin(savedId, form.login_email, form.login_password);
       }
     }
@@ -138,6 +142,30 @@ export default function Employees() {
         toast.error('Login-Erstellung fehlgeschlagen: ' + res.data.error);
       } else {
         toast.success(`Login für ${email} erstellt`);
+      }
+    } catch (err: any) {
+      toast.error('Fehler: ' + err.message);
+    }
+    setCreatingLogin(false);
+  };
+
+  const updateEmployeeLogin = async (userId: string, email: string, password: string) => {
+    setCreatingLogin(true);
+    try {
+      const res = await supabase.functions.invoke('create-employee-user', {
+        body: {
+          action: 'update',
+          user_id: userId,
+          email: email || undefined,
+          password: password || undefined,
+        },
+      });
+      if (res.error) {
+        toast.error('Login-Update fehlgeschlagen: ' + (res.error.message || 'Unbekannter Fehler'));
+      } else if (res.data?.error) {
+        toast.error('Login-Update fehlgeschlagen: ' + res.data.error);
+      } else {
+        toast.success('Login-Daten aktualisiert');
       }
     } catch (err: any) {
       toast.error('Fehler: ' + err.message);
@@ -295,27 +323,28 @@ export default function Employees() {
                     <Badge variant="default" className="text-xs">Login aktiv</Badge>
                   )}
                 </div>
-                {(!editingId || !employees.find(e => e.id === editingId)?.user_id) && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label className="text-xs">E-Mail</Label>
-                      <Input
-                        type="email"
-                        value={form.login_email}
-                        onChange={e => setForm(f => ({ ...f, login_email: e.target.value }))}
-                        placeholder="max@restaurant.ch"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs">Passwort</Label>
-                      <Input
-                        type="text"
-                        value={form.login_password}
-                        onChange={e => setForm(f => ({ ...f, login_password: e.target.value }))}
-                        placeholder="Min. 6 Zeichen"
-                      />
-                    </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label className="text-xs">E-Mail</Label>
+                    <Input
+                      type="email"
+                      value={form.login_email}
+                      onChange={e => setForm(f => ({ ...f, login_email: e.target.value }))}
+                      placeholder={editingId && employees.find(e => e.id === editingId)?.user_id ? 'Neue E-Mail (leer = unverändert)' : 'max@restaurant.ch'}
+                    />
                   </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Passwort</Label>
+                    <Input
+                      type="text"
+                      value={form.login_password}
+                      onChange={e => setForm(f => ({ ...f, login_password: e.target.value }))}
+                      placeholder={editingId && employees.find(e => e.id === editingId)?.user_id ? 'Neues Passwort (leer = unverändert)' : 'Min. 6 Zeichen'}
+                    />
+                  </div>
+                </div>
+                {editingId && employees.find(e => e.id === editingId)?.user_id && (
+                  <p className="text-xs text-muted-foreground">Felder leer lassen, um bestehende Login-Daten beizubehalten.</p>
                 )}
               </div>
 
