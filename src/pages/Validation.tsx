@@ -251,10 +251,22 @@ export default function Validation() {
                     {entry.absence_type ? (
                       <Badge variant="outline">{absenceLabels[entry.absence_type]} ({entry.absence_hours}h)</Badge>
                     ) : (
-                      <p className="text-sm">
-                        {entry.clock_in ? formatTime(entry.clock_in) : '–'} — {entry.clock_out ? formatTime(entry.clock_out) : '...'}
+                      <div className="text-sm">
+                        <span className={`font-medium ${entry.adjusted_clock_in ? 'line-through text-muted-foreground text-xs' : ''}`}>
+                          {entry.clock_in ? formatTime(entry.clock_in) : '–'}
+                        </span>
+                        {entry.adjusted_clock_in && (
+                          <span className="font-medium text-primary ml-1">{formatTime(entry.adjusted_clock_in)}</span>
+                        )}
+                        {' — '}
+                        <span className={`font-medium ${entry.adjusted_clock_out ? 'line-through text-muted-foreground text-xs' : ''}`}>
+                          {entry.clock_out ? formatTime(entry.clock_out) : '...'}
+                        </span>
+                        {entry.adjusted_clock_out && (
+                          <span className="font-medium text-primary ml-1">{formatTime(entry.adjusted_clock_out)}</span>
+                        )}
                         {entry.break_minutes > 0 && <span className="text-muted-foreground"> ({entry.break_minutes}' Pause)</span>}
-                      </p>
+                      </div>
                     )}
                   </div>
                   <div className="flex items-center gap-2">
