@@ -26,6 +26,7 @@ interface Employee {
   first_name: string;
   last_name: string;
   weekly_hours: number | null;
+  hourly_rate: number | null;
   cost_center: string;
   position: string;
 }
@@ -89,7 +90,7 @@ export default function Schedule() {
 
     const [shiftsRes, empRes, assignRes, eventsRes] = await Promise.all([
       supabase.from('shift_types').select('*').order('sort_order'),
-      supabase.from('employees').select('id, first_name, last_name, weekly_hours, cost_center, position').eq('is_active', true),
+      supabase.from('employees').select('id, first_name, last_name, weekly_hours, hourly_rate, cost_center, position').eq('is_active', true),
       supabase.from('schedule_assignments').select('*').gte('date', startDate).lte('date', endDate),
       supabase.from('schedule_events').select('*').gte('date', startDate).lte('date', endDate),
     ]);
@@ -301,6 +302,37 @@ export default function Schedule() {
       return next;
     });
   };
+
+  // Daily cost analysis: for each day, sum up hours × hourly_rate of all assigned shifts
+  const dailyCosts = useMemo(() => {
+    if (!isAdmin) return {};
+    const costs: Record<number, number> = {};
+    const employeeMap = new Map(employees.map(e => [e.id, e]));
+
+    for (const day of days) {
+      let totalCost = 0;
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const dayAssignments = assignments.filter(a => a.date === dateStr);
+
+      for (const a of dayAssignments) {
+        const emp = employeeMap.get(a.employee_id);
+        const shift = shiftTypes.find(s => s.id === a.shift_type_id);
+        if (!emp?.hourly_rate || !shift?.start_time || !shift?.end_time) continue;
+
+        const [sh, sm] = shift.start_time.split(':').map(Number);
+        const [eh, em] = shift.end_time.split(':').map(Number);
+        let hours = (eh + em / 60) - (sh + sm / 60);
+        if (hours < 0) hours += 24; // overnight
+        totalCost += hours * emp.hourly_rate;
+      }
+      costs[day] = Math.round(totalCost * 100) / 100;
+    }
+    return costs;
+  }, [isAdmin, assignments, employees, shiftTypes, days, year, month]);
+
+  const totalMonthlyCost = useMemo(() => {
+    return Object.values(dailyCosts).reduce((sum, c) => sum + c, 0);
+  }, [dailyCosts]);
 
   const formatTime = (t: string | null) => t ? t.slice(0, 5) : '';
 
@@ -539,6 +571,31 @@ export default function Schedule() {
                     ))}
                   </>
                 ))}
+                {/* Daily cost row – admin only */}
+                {isAdmin && employees.length > 0 && (
+                  <tr className="border-t-2 border-primary/20 bg-primary/5 font-medium">
+                    <td className="sticky left-0 z-10 bg-primary/5 px-3 py-2 whitespace-nowrap print:static print:px-1 print:py-1">
+                      <div className="font-heading font-semibold text-xs text-primary print:text-[9px]">Tageskosten</div>
+                      <div className="text-[10px] text-muted-foreground print:text-[8px]">
+                        Total: CHF {totalMonthlyCost.toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </div>
+                    </td>
+                    {days.map(day => {
+                      const cost = dailyCosts[day] || 0;
+                      return (
+                        <td key={day} className={`px-0.5 py-1.5 text-center print:px-0 print:py-0.5 ${isWeekend(day) ? 'bg-muted/30' : ''}`}>
+                          {cost > 0 ? (
+                            <div className="mx-auto text-[9px] font-mono font-semibold text-primary print:text-[7px]">
+                              {cost.toFixed(0)}
+                            </div>
+                          ) : (
+                            <div className="mx-auto text-[9px] text-muted-foreground/40 print:text-[7px]">–</div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                )}
                 {employees.length === 0 && (
                   <tr>
                     <td colSpan={daysInMonth + 1} className="py-8 text-center text-sm text-muted-foreground">

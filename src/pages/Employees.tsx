@@ -18,6 +18,7 @@ interface EmployeeForm {
   last_name: string;
   employee_type: EmployeeType;
   weekly_hours: string;
+  monthly_salary: string;
   hourly_rate: string;
   vacation_days_per_year: string;
   vacation_surcharge_percent: string;
@@ -32,6 +33,7 @@ const emptyForm: EmployeeForm = {
   last_name: '',
   employee_type: 'fixed',
   weekly_hours: '42',
+  monthly_salary: '',
   hourly_rate: '',
   vacation_days_per_year: '20',
   vacation_surcharge_percent: '8.33',
@@ -40,6 +42,13 @@ const emptyForm: EmployeeForm = {
   login_email: '',
   login_password: '',
 };
+
+// L-GAV: max monthly hours = weekly_hours × 4.33
+function calcHourlyRate(monthlySalary: number, weeklyHours: number): number {
+  const monthlyHours = weeklyHours * 4.33;
+  if (monthlyHours <= 0) return 0;
+  return Math.round((monthlySalary / monthlyHours) * 100) / 100;
+}
 
 export default function Employees() {
   const [employees, setEmployees] = useState<any[]>([]);
@@ -64,12 +73,19 @@ export default function Employees() {
     if (!form.cost_center.trim()) { toast.error('Kostenstelle ist erforderlich'); return; }
     if (!form.position.trim()) { toast.error('Position ist erforderlich'); return; }
 
+    const weeklyHours = parseFloat(form.weekly_hours) || 42;
+    const monthlySalary = form.monthly_salary ? parseFloat(form.monthly_salary) : null;
+    const computedHourlyRate = form.employee_type === 'fixed' && monthlySalary
+      ? calcHourlyRate(monthlySalary, weeklyHours)
+      : (form.hourly_rate ? parseFloat(form.hourly_rate) : null);
+
     const payload = {
       first_name: form.first_name,
       last_name: form.last_name,
       employee_type: form.employee_type as EmployeeType,
-      weekly_hours: parseFloat(form.weekly_hours) || 42,
-      hourly_rate: form.hourly_rate ? parseFloat(form.hourly_rate) : null,
+      weekly_hours: weeklyHours,
+      monthly_salary: monthlySalary,
+      hourly_rate: computedHourlyRate,
       vacation_days_per_year: parseInt(form.vacation_days_per_year) || 20,
       vacation_surcharge_percent: parseFloat(form.vacation_surcharge_percent) || 8.33,
       cost_center: form.cost_center.trim(),
@@ -134,6 +150,7 @@ export default function Employees() {
       last_name: emp.last_name,
       employee_type: emp.employee_type,
       weekly_hours: String(emp.weekly_hours || 42),
+      monthly_salary: emp.monthly_salary ? String(emp.monthly_salary) : '',
       hourly_rate: emp.hourly_rate ? String(emp.hourly_rate) : '',
       vacation_days_per_year: String(emp.vacation_days_per_year || 20),
       vacation_surcharge_percent: String(emp.vacation_surcharge_percent || 8.33),
@@ -224,14 +241,35 @@ export default function Employees() {
                 </Select>
               </div>
               {form.employee_type === 'fixed' ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>Soll-Stunden/Woche</Label>
-                    <Input type="number" value={form.weekly_hours} onChange={e => setForm(f => ({ ...f, weekly_hours: e.target.value }))} />
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Soll-Stunden/Woche</Label>
+                      <Input type="number" value={form.weekly_hours} onChange={e => setForm(f => ({ ...f, weekly_hours: e.target.value }))} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Ferientage/Jahr</Label>
+                      <Input type="number" value={form.vacation_days_per_year} onChange={e => setForm(f => ({ ...f, vacation_days_per_year: e.target.value }))} />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Ferientage/Jahr</Label>
-                    <Input type="number" value={form.vacation_days_per_year} onChange={e => setForm(f => ({ ...f, vacation_days_per_year: e.target.value }))} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label>Monatslohn (CHF)</Label>
+                      <Input type="number" value={form.monthly_salary} onChange={e => setForm(f => ({ ...f, monthly_salary: e.target.value }))} step="1" placeholder="z.B. 4500" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Stundenlohn (auto)</Label>
+                      <Input
+                        type="text"
+                        readOnly
+                        className="bg-muted text-muted-foreground"
+                        value={
+                          form.monthly_salary && parseFloat(form.monthly_salary) > 0
+                            ? `CHF ${calcHourlyRate(parseFloat(form.monthly_salary), parseFloat(form.weekly_hours) || 42).toFixed(2)}`
+                            : '–'
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -318,11 +356,14 @@ export default function Employees() {
                             <KeyRound className="h-3 w-3" /> Login
                           </Badge>
                         )}
+                        {emp.employee_type === 'fixed' && emp.monthly_salary && (
+                          <span className="text-xs text-muted-foreground">CHF {Number(emp.monthly_salary).toLocaleString('de-CH')}/Mt</span>
+                        )}
                         {emp.employee_type === 'fixed' && (
                           <span className="text-xs text-muted-foreground">{emp.weekly_hours}h/Wo</span>
                         )}
-                        {emp.employee_type === 'hourly' && emp.hourly_rate && (
-                          <span className="text-xs text-muted-foreground">CHF {emp.hourly_rate}/h</span>
+                        {emp.hourly_rate && (
+                          <span className="text-xs text-muted-foreground">CHF {Number(emp.hourly_rate).toFixed(2)}/h</span>
                         )}
                       </div>
                     </div>
