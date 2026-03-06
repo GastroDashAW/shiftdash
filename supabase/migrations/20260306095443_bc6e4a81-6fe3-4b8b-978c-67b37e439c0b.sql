@@ -1,0 +1,1 @@
+ALTER TABLE public.employees ADD COLUMN monthly_salary numeric NULL;

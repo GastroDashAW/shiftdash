@@ -25,6 +25,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           last_name: string
+          monthly_salary: number | null
           overtime_balance_hours: number | null
           position: string
           updated_at: string
@@ -43,6 +44,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           last_name: string
+          monthly_salary?: number | null
           overtime_balance_hours?: number | null
           position?: string
           updated_at?: string
@@ -61,6 +63,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           last_name?: string
+          monthly_salary?: number | null
           overtime_balance_hours?: number | null
           position?: string
           updated_at?: string
