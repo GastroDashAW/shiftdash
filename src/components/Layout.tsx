@@ -22,15 +22,15 @@ export function Layout({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-              <Clock className="h-4 w-4 text-primary-foreground" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent">
+              <Clock className="h-4 w-4 text-accent-foreground" />
             </div>
-            <span className="font-heading font-semibold">GastroTime</span>
+            <span className="font-heading text-lg font-semibold tracking-tight">EasyShift</span>
           </div>
           
           <div className="flex items-center gap-2">
             <span className="hidden text-xs text-muted-foreground sm:block">
-              GastroTime
+              Dienstplanung & Zeiterfassung
             </span>
             <Button
               variant="ghost"
