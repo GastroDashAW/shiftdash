@@ -673,6 +673,21 @@ export default function Schedule() {
         </CardContent>
       </Card>
 
+      {/* Auto-generate button – admin only */}
+      {isAdmin && (
+        <div className="print:hidden">
+          <Button
+            size="lg"
+            onClick={handleAutoGenerate}
+            disabled={autoGenerating}
+            className="w-full gap-3 text-base font-semibold py-6"
+          >
+            <Wand2 className="h-5 w-5" />
+            {autoGenerating ? 'Dienstplan wird erstellt...' : 'Automatisch erstellen'}
+          </Button>
+        </div>
+      )}
+
       {/* Matrix */}
       <Card className="print:border print:shadow-none">
         <CardContent className="p-0">
