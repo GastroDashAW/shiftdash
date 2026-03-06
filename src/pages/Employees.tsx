@@ -7,14 +7,16 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { toast } from 'sonner';
 import { UserPlus, Edit, Users, KeyRound } from 'lucide-react';
 import { EmployeeImportDropZone } from '@/components/EmployeeImportDropZone';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { EmployeeFormPanel } from '@/components/employees/EmployeeFormPanel';
 
 type EmployeeType = 'fixed' | 'hourly';
 
-interface EmployeeForm {
+export interface EmployeeForm {
   first_name: string;
   last_name: string;
   employee_type: EmployeeType;
@@ -29,7 +31,7 @@ interface EmployeeForm {
   login_password: string;
 }
 
-const emptyForm: EmployeeForm = {
+export const emptyForm: EmployeeForm = {
   first_name: '',
   last_name: '',
   employee_type: 'fixed',
@@ -45,7 +47,7 @@ const emptyForm: EmployeeForm = {
 };
 
 // L-GAV: max monthly hours = weekly_hours × 4.33
-function calcHourlyRate(monthlySalary: number, weeklyHours: number): number {
+export function calcHourlyRate(monthlySalary: number, weeklyHours: number): number {
   const monthlyHours = weeklyHours * 4.33;
   if (monthlyHours <= 0) return 0;
   return Math.round((monthlySalary / monthlyHours) * 100) / 100;
@@ -55,8 +57,9 @@ export default function Employees() {
   const [employees, setEmployees] = useState<any[]>([]);
   const [form, setForm] = useState<EmployeeForm>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [creatingLogin, setCreatingLogin] = useState(false);
+  const isMobile = useIsMobile();
 
   const loadEmployees = async () => {
     const { data } = await supabase
@@ -110,15 +113,13 @@ export default function Employees() {
     if (savedId && (form.login_email || form.login_password)) {
       const emp = employees.find(e => e.id === savedId);
       if (emp?.user_id) {
-        // Update existing user
         await updateEmployeeLogin(emp.user_id, form.login_email, form.login_password);
       } else if (form.login_email && form.login_password) {
-        // Create new user
         await createEmployeeLogin(savedId, form.login_email, form.login_password);
       }
     }
 
-    setDialogOpen(false);
+    setSheetOpen(false);
     setForm(emptyForm);
     setEditingId(null);
     loadEmployees();
@@ -127,7 +128,6 @@ export default function Employees() {
   const createEmployeeLogin = async (employeeId: string, email: string, password: string) => {
     setCreatingLogin(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
       const res = await supabase.functions.invoke('create-employee-user', {
         body: {
           email,
@@ -189,7 +189,7 @@ export default function Employees() {
       login_password: '',
     });
     setEditingId(emp.id);
-    setDialogOpen(true);
+    setSheetOpen(true);
   };
 
   const grouped = employees.reduce((acc: Record<string, any[]>, emp) => {
@@ -202,159 +202,39 @@ export default function Employees() {
   return (
     <div className="space-y-4 pb-20 md:pb-4">
       <div className="flex items-center justify-between">
-        <h1 className="font-heading text-2xl font-bold flex items-center gap-2">
-          <Users className="h-6 w-6" />
+        <h1 className="font-heading text-xl md:text-2xl font-bold flex items-center gap-2">
+          <Users className="h-5 w-5 md:h-6 md:w-6" />
           Mitarbeiter
         </h1>
-        <Dialog open={dialogOpen} onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) { setForm(emptyForm); setEditingId(null); }
+        <Button className="gap-2" size={isMobile ? 'sm' : 'default'} onClick={() => {
+          setForm(emptyForm);
+          setEditingId(null);
+          setSheetOpen(true);
         }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <UserPlus className="h-4 w-4" />
-              Neu
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editingId ? 'Bearbeiten' : 'Neuer Mitarbeiter'}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Vorname *</Label>
-                  <Input value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Nachname *</Label>
-                  <Input value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Kostenstelle *</Label>
-                  <Select value={form.cost_center} onValueChange={(v) => setForm(f => ({ ...f, cost_center: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Kostenstelle wählen" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Geschäftsführung">Geschäftsführung</SelectItem>
-                      <SelectItem value="Küche">Küche</SelectItem>
-                      <SelectItem value="Service">Service</SelectItem>
-                      <SelectItem value="Office">Office</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Position *</Label>
-                  <Select value={form.position} onValueChange={(v) => setForm(f => ({ ...f, position: v }))}>
-                    <SelectTrigger><SelectValue placeholder="Position wählen" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="GF">GF</SelectItem>
-                      <SelectItem value="GF-Stv">GF-Stv</SelectItem>
-                      <SelectItem value="Küchenchef">Küchenchef</SelectItem>
-                      <SelectItem value="Koch">Koch</SelectItem>
-                      <SelectItem value="Service">Service</SelectItem>
-                      <SelectItem value="Office">Office</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Anstellungstyp</Label>
-                <Select value={form.employee_type} onValueChange={(v) => setForm(f => ({ ...f, employee_type: v as EmployeeType }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="fixed">Fixangestellt (Monatslohn)</SelectItem>
-                    <SelectItem value="hourly">Stundenlohn</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {form.employee_type === 'fixed' ? (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label>Soll-Stunden/Woche</Label>
-                      <Input type="number" value={form.weekly_hours} onChange={e => setForm(f => ({ ...f, weekly_hours: e.target.value }))} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Ferientage/Jahr</Label>
-                      <Input type="number" value={form.vacation_days_per_year} onChange={e => setForm(f => ({ ...f, vacation_days_per_year: e.target.value }))} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label>Monatslohn (CHF)</Label>
-                      <Input type="number" value={form.monthly_salary} onChange={e => setForm(f => ({ ...f, monthly_salary: e.target.value }))} step="1" placeholder="z.B. 4500" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Stundenlohn (auto)</Label>
-                      <Input
-                        type="text"
-                        readOnly
-                        className="bg-muted text-muted-foreground"
-                        value={
-                          form.monthly_salary && parseFloat(form.monthly_salary) > 0
-                            ? `CHF ${calcHourlyRate(parseFloat(form.monthly_salary), parseFloat(form.weekly_hours) || 42).toFixed(2)}`
-                            : '–'
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>Stundenlohn (CHF)</Label>
-                    <Input type="number" value={form.hourly_rate} onChange={e => setForm(f => ({ ...f, hourly_rate: e.target.value }))} step="0.05" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Ferienzuschlag %</Label>
-                    <Input type="number" value={form.vacation_surcharge_percent} onChange={e => setForm(f => ({ ...f, vacation_surcharge_percent: e.target.value }))} step="0.01" />
-                  </div>
-                </div>
-              )}
-
-              {/* Login section */}
-              <div className="border-t pt-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <KeyRound className="h-4 w-4 text-muted-foreground" />
-                  <Label className="font-heading font-semibold">Login-Zugang</Label>
-                  {editingId && employees.find(e => e.id === editingId)?.user_id && (
-                    <Badge variant="default" className="text-xs">Login aktiv</Badge>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label className="text-xs">E-Mail</Label>
-                    <Input
-                      type="email"
-                      value={form.login_email}
-                      onChange={e => setForm(f => ({ ...f, login_email: e.target.value }))}
-                      placeholder={editingId && employees.find(e => e.id === editingId)?.user_id ? 'Neue E-Mail (leer = unverändert)' : 'max@restaurant.ch'}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">Passwort</Label>
-                    <Input
-                      type="text"
-                      value={form.login_password}
-                      onChange={e => setForm(f => ({ ...f, login_password: e.target.value }))}
-                      placeholder={editingId && employees.find(e => e.id === editingId)?.user_id ? 'Neues Passwort (leer = unverändert)' : 'Min. 6 Zeichen'}
-                    />
-                  </div>
-                </div>
-                {editingId && employees.find(e => e.id === editingId)?.user_id && (
-                  <p className="text-xs text-muted-foreground">Felder leer lassen, um bestehende Login-Daten beizubehalten.</p>
-                )}
-              </div>
-
-              <Button onClick={handleSave} className="w-full" disabled={creatingLogin}>
-                {creatingLogin ? 'Login wird erstellt...' : editingId ? 'Aktualisieren' : 'Erstellen'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+          <UserPlus className="h-4 w-4" />
+          Neu
+        </Button>
       </div>
+
+      {/* Form Sheet – slides from right on mobile, wider on desktop */}
+      <Sheet open={sheetOpen} onOpenChange={(open) => {
+        setSheetOpen(open);
+        if (!open) { setForm(emptyForm); setEditingId(null); }
+      }}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{editingId ? 'Bearbeiten' : 'Neuer Mitarbeiter'}</SheetTitle>
+          </SheetHeader>
+          <EmployeeFormPanel
+            form={form}
+            setForm={setForm}
+            editingId={editingId}
+            employees={employees}
+            creatingLogin={creatingLogin}
+            onSave={handleSave}
+          />
+        </SheetContent>
+      </Sheet>
 
       <EmployeeImportDropZone onImported={loadEmployees} />
 
@@ -367,15 +247,15 @@ export default function Employees() {
       ) : (
         Object.entries(grouped).map(([costCenter, emps]: [string, any[]]) => (
           <div key={costCenter} className="space-y-2">
-            <h2 className="font-heading text-sm font-semibold text-muted-foreground uppercase tracking-wide">{costCenter}</h2>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <h2 className="font-heading text-xs md:text-sm font-semibold text-muted-foreground uppercase tracking-wide">{costCenter}</h2>
+            <div className="grid gap-2 md:gap-3 sm:grid-cols-2">
               {emps.map((emp: any) => (
                 <Card
                   key={emp.id}
-                  className={`transition-shadow hover:shadow-md ${emp.is_active === false ? 'opacity-50' : ''}`}
+                  className={`transition-shadow hover:shadow-md active:scale-[0.99] ${emp.is_active === false ? 'opacity-50' : ''}`}
                 >
-                  <CardContent className="flex items-center justify-between p-4">
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <CardContent className="flex items-center justify-between p-3 md:p-4">
+                    <div className="flex items-start gap-2 md:gap-3 flex-1 min-w-0">
                       <Checkbox
                         checked={emp.is_active !== false}
                         onCheckedChange={async (checked) => {
@@ -383,39 +263,39 @@ export default function Employees() {
                           toast.success(checked ? 'Mitarbeiter aktiviert' : 'Mitarbeiter deaktiviert');
                           loadEmployees();
                         }}
-                        className="mt-1"
+                        className="mt-0.5"
                         title={emp.is_active !== false ? 'Aktiv – klicken zum Deaktivieren' : 'Inaktiv – klicken zum Aktivieren'}
                       />
                       <div className="cursor-pointer flex-1 min-w-0" onClick={() => openEdit(emp)}>
-                        <p className="font-heading font-semibold">
+                        <p className="font-heading font-semibold text-sm md:text-base truncate">
                           {emp.first_name} {emp.last_name}
                           {emp.is_active === false && (
-                            <Badge variant="secondary" className="ml-2 text-xs">inaktiv</Badge>
+                            <Badge variant="secondary" className="ml-2 text-[10px] md:text-xs">inaktiv</Badge>
                           )}
                         </p>
-                        <div className="mt-1 flex flex-wrap items-center gap-2">
-                          <Badge variant="outline" className="text-xs">{emp.position}</Badge>
-                          <Badge variant={emp.employee_type === 'fixed' ? 'default' : 'secondary'}>
-                            {emp.employee_type === 'fixed' ? 'Monatslohn' : 'Stundenlohn'}
+                        <div className="mt-1 flex flex-wrap items-center gap-1 md:gap-2">
+                          <Badge variant="outline" className="text-[10px] md:text-xs">{emp.position}</Badge>
+                          <Badge variant={emp.employee_type === 'fixed' ? 'default' : 'secondary'} className="text-[10px] md:text-xs">
+                            {emp.employee_type === 'fixed' ? 'Fix' : 'Std'}
                           </Badge>
                           {emp.user_id && (
-                            <Badge variant="default" className="text-xs gap-1">
-                              <KeyRound className="h-3 w-3" /> Login
+                            <Badge variant="default" className="text-[10px] md:text-xs gap-0.5">
+                              <KeyRound className="h-2.5 w-2.5 md:h-3 md:w-3" /> Login
                             </Badge>
                           )}
                           {emp.employee_type === 'fixed' && emp.monthly_salary && (
-                            <span className="text-xs text-muted-foreground">CHF {Number(emp.monthly_salary).toLocaleString('de-CH')}/Mt</span>
+                            <span className="text-[10px] md:text-xs text-muted-foreground hidden sm:inline">CHF {Number(emp.monthly_salary).toLocaleString('de-CH')}/Mt</span>
                           )}
                           {emp.employee_type === 'fixed' && (
-                            <span className="text-xs text-muted-foreground">{emp.weekly_hours}h/Wo</span>
+                            <span className="text-[10px] md:text-xs text-muted-foreground">{emp.weekly_hours}h</span>
                           )}
                           {emp.hourly_rate && (
-                            <span className="text-xs text-muted-foreground">CHF {Number(emp.hourly_rate).toFixed(2)}/h</span>
+                            <span className="text-[10px] md:text-xs text-muted-foreground">CHF {Number(emp.hourly_rate).toFixed(2)}/h</span>
                           )}
                         </div>
                       </div>
                     </div>
-                    <Edit className="h-4 w-4 text-muted-foreground cursor-pointer shrink-0" onClick={() => openEdit(emp)} />
+                    <Edit className="h-4 w-4 text-muted-foreground cursor-pointer shrink-0 ml-1" onClick={() => openEdit(emp)} />
                   </CardContent>
                 </Card>
               ))}
