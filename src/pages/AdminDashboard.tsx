@@ -27,6 +27,7 @@ const adminTiles = [
 const employeeTiles = [
   { label: 'Stempeln', to: '/clock', image: tileStempeln, desc: 'Ein-/Ausstempeln & Absenzen' },
   { label: 'Dienstplan', to: '/schedule', image: tileDienstplan, desc: 'Deine Schichten einsehen' },
+  { label: 'Abwesenheit', to: '/leave', image: tileValidierung, desc: 'Ferien & Frei beantragen' },
 ];
 
 export default function AdminDashboard() {
