@@ -6,12 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
-import { formatHoursMinutes } from '@/lib/lgav';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Line, ComposedChart } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, Percent } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Percent, Save, Receipt } from 'lucide-react';
 
 const WEEKDAY_LABELS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+const DEFAULT_VAT_RATE = 8.1;
 
 export default function Budget() {
   const now = new Date();
@@ -27,6 +28,13 @@ export default function Budget() {
   const [businessSettings, setBusinessSettings] = useState<any>(null);
   const [saving, setSaving] = useState(false);
 
+  // Actual daily revenues
+  const [actualRevenues, setActualRevenues] = useState<Record<string, { id?: string; revenue_gross: number; vat_rate: number }>>({});
+  const [showNet, setShowNet] = useState(false);
+  const [savingRevenues, setSavingRevenues] = useState(false);
+
+  const daysInMonth = new Date(year, month, 0).getDate();
+
   // Load data
   useEffect(() => {
     const load = async () => {
@@ -41,7 +49,7 @@ export default function Budget() {
         setTotalRevenue(budgetRes.data.total_revenue || 0);
         setDistributionMode(budgetRes.data.distribution_mode as any || 'linear');
         if (budgetRes.data.day_weights && typeof budgetRes.data.day_weights === 'object') {
-          setDayWeights({ ...dayWeights, ...(budgetRes.data.day_weights as Record<string, number>) });
+          setDayWeights(prev => ({ ...prev, ...(budgetRes.data.day_weights as Record<string, number>) }));
         }
         setBudgetId(budgetRes.data.id);
       } else {
@@ -55,33 +63,39 @@ export default function Budget() {
     };
     load();
 
-    // Load assignments for this month
+    // Load assignments
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
     const endDate = new Date(year, month, 0).toISOString().split('T')[0];
     supabase.from('schedule_assignments').select('*').gte('date', startDate).lte('date', endDate)
       .then(({ data }) => setAssignments(data || []));
+
+    // Load actual daily revenues
+    supabase.from('daily_revenues').select('*')
+      .gte('date', `${year}-${String(month).padStart(2, '0')}-01`)
+      .lte('date', new Date(year, month, 0).toISOString().split('T')[0])
+      .then(({ data }) => {
+        const map: Record<string, { id: string; revenue_gross: number; vat_rate: number }> = {};
+        (data || []).forEach(r => {
+          map[r.date] = { id: r.id, revenue_gross: r.revenue_gross, vat_rate: r.vat_rate };
+        });
+        setActualRevenues(map);
+      });
   }, [year, month]);
 
   const socialChargesPercent = businessSettings?.social_charges_percent || 15;
 
-  // Calculate days in month
-  const daysInMonth = new Date(year, month, 0).getDate();
-
-  // Distribute revenue across days
-  const dailyRevenue = useMemo(() => {
+  // Distribute budget revenue across days
+  const dailyBudgetRevenue = useMemo(() => {
     const result: Record<number, number> = {};
-
     if (distributionMode === 'linear') {
       const daily = totalRevenue / daysInMonth;
       for (let d = 1; d <= daysInMonth; d++) result[d] = daily;
     } else {
-      // Weighted by day of week
       let totalWeight = 0;
       const dayWeightMap: Record<number, number> = {};
       for (let d = 1; d <= daysInMonth; d++) {
         const dow = new Date(year, month - 1, d).getDay();
-        const label = WEEKDAY_LABELS[dow];
-        const w = dayWeights[label] || 1;
+        const w = dayWeights[WEEKDAY_LABELS[dow]] || 1;
         dayWeightMap[d] = w;
         totalWeight += w;
       }
@@ -92,12 +106,11 @@ export default function Budget() {
     return result;
   }, [totalRevenue, distributionMode, dayWeights, daysInMonth, year, month]);
 
-  // Calculate daily costs from schedule
+  // Daily costs from schedule
   const dailyCosts = useMemo(() => {
     const result: Record<number, number> = {};
     const shiftMap = Object.fromEntries(shiftTypes.map(s => [s.id, s]));
     const empMap = Object.fromEntries(employees.map(e => [e.id, e]));
-
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const dayAssignments = assignments.filter(a => a.date === dateStr);
@@ -110,8 +123,7 @@ export default function Budget() {
           const [sh, sm] = shift.start_time.split(':').map(Number);
           const [eh, em] = shift.end_time.split(':').map(Number);
           const hours = (eh + em / 60) - (sh + sm / 60);
-          const baseCost = hours * emp.hourly_rate;
-          cost += baseCost * (1 + socialChargesPercent / 100);
+          cost += hours * emp.hourly_rate * (1 + socialChargesPercent / 100);
         }
       }
       result[d] = cost;
@@ -119,35 +131,52 @@ export default function Budget() {
     return result;
   }, [assignments, shiftTypes, employees, daysInMonth, year, month, socialChargesPercent]);
 
+  const grossToNet = (gross: number, vatRate: number) => gross / (1 + vatRate / 100);
+
+  // Helper: get actual revenue for a day (net)
+  const getActualNet = (day: number) => {
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const entry = actualRevenues[dateStr];
+    if (!entry || !entry.revenue_gross) return 0;
+    return grossToNet(entry.revenue_gross, entry.vat_rate);
+  };
+
+  const getActualGross = (day: number) => {
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return actualRevenues[dateStr]?.revenue_gross || 0;
+  };
+
   // Chart data
   const chartData = useMemo(() => {
     const data = [];
     for (let d = 1; d <= daysInMonth; d++) {
-      const rev = dailyRevenue[d] || 0;
+      const budgetRev = dailyBudgetRevenue[d] || 0;
       const cost = dailyCosts[d] || 0;
+      const actualNet = getActualNet(d);
+      const actualGross = getActualGross(d);
+      const useRev = actualNet > 0 ? actualNet : budgetRev;
       data.push({
         day: d,
-        umsatz: Math.round(rev),
+        budget: Math.round(budgetRev),
+        effektiv_brutto: Math.round(actualGross),
+        effektiv_netto: Math.round(actualNet),
         kosten: Math.round(cost),
-        differenz: Math.round(rev - cost),
-        prozent: rev > 0 ? Math.round((cost / rev) * 100) : 0,
+        prozent_budget: budgetRev > 0 ? Math.round((cost / budgetRev) * 100) : 0,
+        prozent_effektiv: actualNet > 0 ? Math.round((cost / actualNet) * 100) : 0,
       });
     }
     return data;
-  }, [dailyRevenue, dailyCosts, daysInMonth]);
+  }, [dailyBudgetRevenue, dailyCosts, daysInMonth, actualRevenues]);
 
   const totalCosts = Object.values(dailyCosts).reduce((a, b) => a + b, 0);
-  const overallPercent = totalRevenue > 0 ? (totalCosts / totalRevenue) * 100 : 0;
+  const totalActualGross = Array.from({ length: daysInMonth }, (_, i) => getActualGross(i + 1)).reduce((a, b) => a + b, 0);
+  const totalActualNet = Array.from({ length: daysInMonth }, (_, i) => getActualNet(i + 1)).reduce((a, b) => a + b, 0);
+  const overallPercentBudget = totalRevenue > 0 ? (totalCosts / totalRevenue) * 100 : 0;
+  const overallPercentActual = totalActualNet > 0 ? (totalCosts / totalActualNet) * 100 : 0;
 
   const handleSave = async () => {
     setSaving(true);
-    const payload = {
-      year, month,
-      total_revenue: totalRevenue,
-      distribution_mode: distributionMode,
-      day_weights: dayWeights,
-    };
-
+    const payload = { year, month, total_revenue: totalRevenue, distribution_mode: distributionMode, day_weights: dayWeights };
     if (budgetId) {
       await supabase.from('monthly_budgets').update(payload).eq('id', budgetId);
     } else {
@@ -156,6 +185,34 @@ export default function Budget() {
     }
     setSaving(false);
     toast.success('Budget gespeichert');
+  };
+
+  const handleSetActualRevenue = (day: number, value: number, isNet: boolean) => {
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const existing = actualRevenues[dateStr];
+    const vatRate = existing?.vat_rate ?? DEFAULT_VAT_RATE;
+    const gross = isNet ? value * (1 + vatRate / 100) : value;
+    setActualRevenues(prev => ({
+      ...prev,
+      [dateStr]: { ...prev[dateStr], revenue_gross: Math.round(gross * 100) / 100, vat_rate: vatRate },
+    }));
+  };
+
+  const handleSaveRevenues = async () => {
+    setSavingRevenues(true);
+    const entries = Object.entries(actualRevenues).filter(([, v]) => v.revenue_gross > 0);
+    for (const [date, entry] of entries) {
+      if (entry.id) {
+        await supabase.from('daily_revenues').update({ revenue_gross: entry.revenue_gross, vat_rate: entry.vat_rate }).eq('id', entry.id);
+      } else {
+        const { data } = await supabase.from('daily_revenues').insert({ date, revenue_gross: entry.revenue_gross, vat_rate: entry.vat_rate }).select().single();
+        if (data) {
+          setActualRevenues(prev => ({ ...prev, [date]: { ...prev[date], id: data.id } }));
+        }
+      }
+    }
+    setSavingRevenues(false);
+    toast.success('Tagesumsätze gespeichert');
   };
 
   const monthNames = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
@@ -182,8 +239,16 @@ export default function Budget() {
         <Card>
           <CardContent className="p-4 text-center">
             <DollarSign className="mx-auto h-5 w-5 text-muted-foreground mb-1" />
-            <p className="text-xs text-muted-foreground">Budget Umsatz</p>
+            <p className="text-xs text-muted-foreground">Budget</p>
             <p className="font-heading text-lg font-bold">CHF {totalRevenue.toLocaleString('de-CH')}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <Receipt className="mx-auto h-5 w-5 text-primary mb-1" />
+            <p className="text-xs text-muted-foreground">Effektiv (netto)</p>
+            <p className="font-heading text-lg font-bold">CHF {Math.round(totalActualNet).toLocaleString('de-CH')}</p>
+            <p className="text-xs text-muted-foreground">brutto: {Math.round(totalActualGross).toLocaleString('de-CH')}</p>
           </CardContent>
         </Card>
         <Card>
@@ -197,22 +262,28 @@ export default function Budget() {
         <Card>
           <CardContent className="p-4 text-center">
             <Percent className="mx-auto h-5 w-5 text-warning mb-1" />
-            <p className="text-xs text-muted-foreground">Personalkostenanteil</p>
-            <p className={`font-heading text-lg font-bold ${overallPercent > 40 ? 'text-destructive' : overallPercent > 30 ? 'text-warning' : 'text-accent'}`}>
-              {overallPercent.toFixed(1)}%
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <TrendingUp className="mx-auto h-5 w-5 text-accent mb-1" />
-            <p className="text-xs text-muted-foreground">Differenz</p>
-            <p className="font-heading text-lg font-bold">CHF {Math.round(totalRevenue - totalCosts).toLocaleString('de-CH')}</p>
+            <p className="text-xs text-muted-foreground">Kostenanteil</p>
+            <div className="flex items-center justify-center gap-2">
+              <div>
+                <p className="text-xs text-muted-foreground">Budget</p>
+                <p className={`font-heading text-base font-bold ${overallPercentBudget > 40 ? 'text-destructive' : overallPercentBudget > 30 ? 'text-warning' : 'text-accent'}`}>
+                  {overallPercentBudget.toFixed(1)}%
+                </p>
+              </div>
+              {totalActualNet > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Effektiv</p>
+                  <p className={`font-heading text-base font-bold ${overallPercentActual > 40 ? 'text-destructive' : overallPercentActual > 30 ? 'text-warning' : 'text-accent'}`}>
+                    {overallPercentActual.toFixed(1)}%
+                  </p>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Budget input */}
+      {/* Budget config */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Monatsbudget konfigurieren</CardTitle>
@@ -220,13 +291,8 @@ export default function Budget() {
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Gesamtumsatz (CHF)</Label>
-              <Input
-                type="number"
-                value={totalRevenue || ''}
-                onChange={e => setTotalRevenue(Number(e.target.value))}
-                placeholder="z.B. 120000"
-              />
+              <Label>Gesamtumsatz Budget (CHF)</Label>
+              <Input type="number" value={totalRevenue || ''} onChange={e => setTotalRevenue(Number(e.target.value))} placeholder="z.B. 120000" />
             </div>
             <div className="space-y-2">
               <Label>Verteilung</Label>
@@ -239,7 +305,6 @@ export default function Budget() {
               </Select>
             </div>
           </div>
-
           {distributionMode === 'weighted' && (
             <div className="space-y-2">
               <Label className="text-sm">Gewichtung pro Wochentag</Label>
@@ -247,23 +312,79 @@ export default function Budget() {
                 {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(day => (
                   <div key={day} className="space-y-1">
                     <Label className="text-xs text-center block">{day}</Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      value={dayWeights[day] || 1}
+                    <Input type="number" step="0.1" min="0" value={dayWeights[day] || 1}
                       onChange={e => setDayWeights(prev => ({ ...prev, [day]: Number(e.target.value) }))}
-                      className="text-center text-sm"
-                    />
+                      className="text-center text-sm" />
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">Höherer Wert = mehr Umsatz an diesem Tag. Standard = 1.0</p>
             </div>
           )}
-
           <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
             {saving ? 'Speichern...' : 'Budget speichern'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Actual daily revenues */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Receipt className="h-4 w-4" />
+              Effektive Tagesumsätze
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground">Brutto</Label>
+              <Switch checked={showNet} onCheckedChange={setShowNet} />
+              <Label className="text-xs text-muted-foreground">Netto (exkl. MwSt)</Label>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            {showNet
+              ? `Beträge ohne MwSt eingeben (${DEFAULT_VAT_RATE}% wird automatisch aufgerechnet)`
+              : `Beträge inkl. MwSt eingeben (${DEFAULT_VAT_RATE}% wird automatisch abgezogen)`}
+          </p>
+          <div className="max-h-80 overflow-auto">
+            <div className="grid gap-1">
+              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const date = new Date(year, month - 1, day);
+                const dow = WEEKDAY_LABELS[date.getDay()];
+                const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                const entry = actualRevenues[dateStr];
+                const gross = entry?.revenue_gross || 0;
+                const vatRate = entry?.vat_rate ?? DEFAULT_VAT_RATE;
+                const net = gross > 0 ? grossToNet(gross, vatRate) : 0;
+                const displayValue = showNet ? (net > 0 ? Math.round(net) : '') : (gross > 0 ? Math.round(gross) : '');
+
+                return (
+                  <div key={day} className={`flex items-center gap-2 rounded px-2 py-1 ${isWeekend ? 'bg-muted/50' : ''}`}>
+                    <span className="w-14 text-xs font-medium">{dow} {day}.</span>
+                    <Input
+                      type="number"
+                      className="h-8 text-sm flex-1"
+                      placeholder="0"
+                      value={displayValue}
+                      onChange={e => handleSetActualRevenue(day, Number(e.target.value), showNet)}
+                    />
+                    <span className="text-xs text-muted-foreground w-24 text-right">
+                      {gross > 0 && (
+                        showNet
+                          ? `brutto ${Math.round(gross).toLocaleString('de-CH')}`
+                          : `netto ${Math.round(net).toLocaleString('de-CH')}`
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <Button onClick={handleSaveRevenues} disabled={savingRevenues} className="w-full sm:w-auto gap-2">
+            <Save className="h-4 w-4" />
+            {savingRevenues ? 'Speichern...' : 'Tagesumsätze speichern'}
           </Button>
         </CardContent>
       </Card>
@@ -280,15 +401,22 @@ export default function Budget() {
                 <XAxis dataKey="day" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip
-                  formatter={(value: number, name: string) => [
-                    `CHF ${value.toLocaleString('de-CH')}`,
-                    name === 'umsatz' ? 'Umsatz' : name === 'kosten' ? 'Kosten' : 'Differenz'
-                  ]}
+                  formatter={(value: number, name: string) => {
+                    const labels: Record<string, string> = {
+                      budget: 'Budget', effektiv_netto: 'Effektiv (netto)',
+                      kosten: 'Kosten (inkl. NK)', prozent_effektiv: 'Kostenanteil %',
+                    };
+                    return [name.includes('prozent') ? `${value}%` : `CHF ${value.toLocaleString('de-CH')}`, labels[name] || name];
+                  }}
                 />
-                <Legend formatter={v => v === 'umsatz' ? 'Umsatz' : v === 'kosten' ? 'Kosten (inkl. NK)' : 'Kostenanteil %'} />
-                <Bar dataKey="umsatz" fill="hsl(var(--accent))" radius={[3, 3, 0, 0]} />
+                <Legend formatter={v => {
+                  const l: Record<string, string> = { budget: 'Budget', effektiv_netto: 'Effektiv (netto)', kosten: 'Kosten (inkl. NK)', prozent_effektiv: '% Effektiv' };
+                  return l[v] || v;
+                }} />
+                <Bar dataKey="budget" fill="hsl(var(--accent))" opacity={0.4} radius={[3, 3, 0, 0]} />
+                <Bar dataKey="effektiv_netto" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="kosten" fill="hsl(var(--destructive))" radius={[3, 3, 0, 0]} />
-                <Line dataKey="prozent" stroke="hsl(var(--warning))" strokeWidth={2} dot={false} />
+                <Line dataKey="prozent_effektiv" stroke="hsl(var(--warning))" strokeWidth={2} dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -306,10 +434,12 @@ export default function Budget() {
               <thead className="sticky top-0 bg-card">
                 <tr className="border-b text-left">
                   <th className="py-2 px-2">Tag</th>
-                  <th className="py-2 px-2 text-right">Umsatz</th>
+                  <th className="py-2 px-2 text-right">Budget</th>
+                  <th className="py-2 px-2 text-right">Effektiv brutto</th>
+                  <th className="py-2 px-2 text-right">Effektiv netto</th>
                   <th className="py-2 px-2 text-right">Kosten</th>
-                  <th className="py-2 px-2 text-right">%</th>
-                  <th className="py-2 px-2 text-right">Differenz</th>
+                  <th className="py-2 px-2 text-right">% Budget</th>
+                  <th className="py-2 px-2 text-right">% Effektiv</th>
                 </tr>
               </thead>
               <tbody>
@@ -320,15 +450,21 @@ export default function Budget() {
                   return (
                     <tr key={row.day} className={`border-b ${isWeekend ? 'bg-muted/50' : ''}`}>
                       <td className="py-1.5 px-2">{dow} {row.day}.</td>
-                      <td className="py-1.5 px-2 text-right">CHF {row.umsatz.toLocaleString('de-CH')}</td>
-                      <td className="py-1.5 px-2 text-right">CHF {row.kosten.toLocaleString('de-CH')}</td>
+                      <td className="py-1.5 px-2 text-right text-muted-foreground">{row.budget.toLocaleString('de-CH')}</td>
+                      <td className="py-1.5 px-2 text-right">{row.effektiv_brutto > 0 ? row.effektiv_brutto.toLocaleString('de-CH') : '–'}</td>
+                      <td className="py-1.5 px-2 text-right font-medium">{row.effektiv_netto > 0 ? row.effektiv_netto.toLocaleString('de-CH') : '–'}</td>
+                      <td className="py-1.5 px-2 text-right">{row.kosten.toLocaleString('de-CH')}</td>
                       <td className="py-1.5 px-2 text-right">
-                        <Badge variant={row.prozent > 40 ? 'destructive' : row.prozent > 30 ? 'secondary' : 'default'} className="text-xs">
-                          {row.prozent}%
+                        <Badge variant={row.prozent_budget > 40 ? 'destructive' : row.prozent_budget > 30 ? 'secondary' : 'default'} className="text-xs">
+                          {row.prozent_budget}%
                         </Badge>
                       </td>
-                      <td className={`py-1.5 px-2 text-right font-medium ${row.differenz < 0 ? 'text-destructive' : 'text-accent'}`}>
-                        CHF {row.differenz.toLocaleString('de-CH')}
+                      <td className="py-1.5 px-2 text-right">
+                        {row.effektiv_netto > 0 ? (
+                          <Badge variant={row.prozent_effektiv > 40 ? 'destructive' : row.prozent_effektiv > 30 ? 'secondary' : 'default'} className="text-xs">
+                            {row.prozent_effektiv}%
+                          </Badge>
+                        ) : '–'}
                       </td>
                     </tr>
                   );
@@ -337,12 +473,18 @@ export default function Budget() {
               <tfoot className="border-t-2 font-semibold">
                 <tr>
                   <td className="py-2 px-2">Total</td>
-                  <td className="py-2 px-2 text-right">CHF {totalRevenue.toLocaleString('de-CH')}</td>
-                  <td className="py-2 px-2 text-right">CHF {Math.round(totalCosts).toLocaleString('de-CH')}</td>
+                  <td className="py-2 px-2 text-right text-muted-foreground">{totalRevenue.toLocaleString('de-CH')}</td>
+                  <td className="py-2 px-2 text-right">{totalActualGross > 0 ? Math.round(totalActualGross).toLocaleString('de-CH') : '–'}</td>
+                  <td className="py-2 px-2 text-right">{totalActualNet > 0 ? Math.round(totalActualNet).toLocaleString('de-CH') : '–'}</td>
+                  <td className="py-2 px-2 text-right">{Math.round(totalCosts).toLocaleString('de-CH')}</td>
                   <td className="py-2 px-2 text-right">
-                    <Badge variant={overallPercent > 40 ? 'destructive' : 'default'}>{overallPercent.toFixed(1)}%</Badge>
+                    <Badge variant={overallPercentBudget > 40 ? 'destructive' : 'default'}>{overallPercentBudget.toFixed(1)}%</Badge>
                   </td>
-                  <td className="py-2 px-2 text-right">CHF {Math.round(totalRevenue - totalCosts).toLocaleString('de-CH')}</td>
+                  <td className="py-2 px-2 text-right">
+                    {totalActualNet > 0 ? (
+                      <Badge variant={overallPercentActual > 40 ? 'destructive' : 'default'}>{overallPercentActual.toFixed(1)}%</Badge>
+                    ) : '–'}
+                  </td>
                 </tr>
               </tfoot>
             </table>
