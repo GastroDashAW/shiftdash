@@ -16,6 +16,7 @@ import ExportPage from "./pages/Export";
 import TimeControl from "./pages/TimeControl";
 import Budget from "./pages/Budget";
 import Business from "./pages/Business";
+import LeaveRequests from "./pages/LeaveRequests";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
