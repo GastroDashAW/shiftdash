@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Pencil, Trash2, Plus, Save, X, AlertTriangle } from 'lucide-react';
+import { ShiftPlanConfig } from '@/components/shifts/ShiftPlanConfig';
 
 interface ShiftType {
   id: string;
@@ -293,6 +294,9 @@ export default function ShiftTypes() {
           );
         })}
       </div>
+
+      {/* Shift Plan Config Matrix */}
+      <ShiftPlanConfig shifts={shifts} />
     </div>
   );
 }
