@@ -82,11 +82,19 @@ export default function Business() {
               dayHours = { ...defaultDayHours, ...parsed };
             }
           } catch { /* keep defaults */ }
+          let shiftsDay = defaultShiftsPerDay;
+          try {
+            const spd = (row as any).shifts_per_day;
+            if (spd && typeof spd === 'object') {
+              shiftsDay = { ...defaultShiftsPerDay, ...spd };
+            }
+          } catch { /* keep defaults */ }
           setData({
             ...(row as any),
             closed_days: closed,
             auto_sync_schedule: row.auto_sync_schedule ?? false,
             day_opening_hours: dayHours,
+            shifts_per_day: shiftsDay,
           });
         }
       });
