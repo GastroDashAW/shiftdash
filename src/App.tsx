@@ -12,6 +12,7 @@ import ShiftTypes from "./pages/ShiftTypes";
 import Schedule from "./pages/Schedule";
 import Validation from "./pages/Validation";
 import ExportPage from "./pages/Export";
+import TimeControl from "./pages/TimeControl";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ function AppContent() {
               <Route path="/schedule" element={<Schedule />} />
               <Route path="/employees" element={<ProtectedRoute adminOnly><Employees /></ProtectedRoute>} />
               <Route path="/shifts" element={<ProtectedRoute adminOnly><ShiftTypes /></ProtectedRoute>} />
+              <Route path="/time-control" element={<ProtectedRoute adminOnly><TimeControl /></ProtectedRoute>} />
               <Route path="/validation" element={<ProtectedRoute adminOnly><Validation /></ProtectedRoute>} />
               <Route path="/export" element={<ProtectedRoute adminOnly><ExportPage /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />

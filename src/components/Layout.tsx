@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
-import { Clock, Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut } from 'lucide-react';
+import { Clock, Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut, ClipboardCheck } from 'lucide-react';
 import { useState } from 'react';
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -14,6 +14,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { to: '/schedule', label: 'Dienstplan', icon: CalendarDays, adminOnly: false },
     { to: '/employees', label: 'Mitarbeiter', icon: Users, adminOnly: true },
     { to: '/shifts', label: 'Dienste', icon: Layers, adminOnly: true },
+    { to: '/time-control', label: 'Tageskontrolle', icon: ClipboardCheck, adminOnly: true },
     { to: '/validation', label: 'Validierung', icon: CalendarCheck, adminOnly: true },
     { to: '/export', label: 'Export', icon: FileDown, adminOnly: true },
   ];
