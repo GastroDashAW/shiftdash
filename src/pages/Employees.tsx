@@ -51,6 +51,7 @@ export const emptyForm: EmployeeForm = {
   login_password: '',
   pensum_percent: '100',
   available_days: ['Mo', 'Di', 'Mi', 'Do', 'Fr'],
+  allowed_shift_types: [],
 };
 
 // L-GAV: max monthly hours = weekly_hours × 4.33
