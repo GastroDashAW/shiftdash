@@ -134,6 +134,7 @@ export default function ShiftTypes() {
       start_time: editForm.start_time || null,
       end_time: editForm.end_time || null,
       cost_center: editForm.cost_center || '',
+      break_minutes: editForm.break_minutes ?? 0,
     }).eq('id', editingId);
     if (error) { toast.error('Fehler beim Speichern'); return; }
     toast.success('Dienst aktualisiert');
