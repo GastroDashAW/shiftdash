@@ -3,11 +3,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, Printer, Filter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, Printer, Filter, Undo2 } from 'lucide-react';
 import { validateSchedule, LgavViolation } from '@/lib/lgav-schedule-validation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
@@ -381,6 +382,27 @@ export default function Schedule() {
   const formatTime = (t: string | null) => t ? t.slice(0, 5) : '';
 
   const [autoGenerating, setAutoGenerating] = useState(false);
+  const [undoSnapshot, setUndoSnapshot] = useState<{ assignments: { employee_id: string; date: string; shift_type_id: string }[]; startDate: string; endDate: string } | null>(null);
+
+  const handleUndoGenerate = async () => {
+    if (!undoSnapshot) return;
+    try {
+      await supabase.from('schedule_assignments').delete()
+        .gte('date', undoSnapshot.startDate)
+        .lte('date', undoSnapshot.endDate);
+      if (undoSnapshot.assignments.length > 0) {
+        for (let i = 0; i < undoSnapshot.assignments.length; i += 500) {
+          const chunk = undoSnapshot.assignments.slice(i, i + 500);
+          await supabase.from('schedule_assignments').insert(chunk);
+        }
+      }
+      toast.success('Dienstplan zurückgestellt');
+      setUndoSnapshot(null);
+      loadData();
+    } catch (err: any) {
+      toast.error('Fehler beim Zurückstellen: ' + err.message);
+    }
+  };
 
   const handleAutoGenerate = async (genStartDate: Date, genEndDate: Date) => {
     if (!isAdmin) return;
@@ -460,7 +482,18 @@ export default function Schedule() {
         shiftCostCenter.set(st.id, st.cost_center || '');
       }
 
-      // 7. Delete existing assignments for the date range (fresh generation)
+      // 7. Save snapshot for undo, then delete existing assignments
+      const { data: existingAssignments } = await supabase
+        .from('schedule_assignments')
+        .select('employee_id, date, shift_type_id')
+        .gte('date', startDateStr)
+        .lte('date', endDateStr);
+      setUndoSnapshot({
+        assignments: (existingAssignments || []).map(a => ({ employee_id: a.employee_id, date: a.date, shift_type_id: a.shift_type_id })),
+        startDate: startDateStr,
+        endDate: endDateStr,
+      });
+
       await supabase
         .from('schedule_assignments')
         .delete()
@@ -706,6 +739,28 @@ export default function Schedule() {
             generating={autoGenerating}
             defaultMonth={new Date(year, month, 1)}
           />
+          {undoSnapshot && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="w-full gap-2 text-sm">
+                  <Undo2 className="h-4 w-4" />
+                  Letzte automatische Erstellung zurückstellen
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Zurückstellen?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Der automatisch erstellte Dienstplan ({undoSnapshot.startDate} – {undoSnapshot.endDate}) wird durch den vorherigen Stand ersetzt ({undoSnapshot.assignments.length} Einträge).
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleUndoGenerate}>Zurückstellen</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
           <ScheduleArchivePanel
             currentAssignments={assignments.map(a => ({ employee_id: a.employee_id, date: a.date, shift_type_id: a.shift_type_id }))}
             currentStartDate={`${year}-${String(month + 1).padStart(2, '0')}-01`}
