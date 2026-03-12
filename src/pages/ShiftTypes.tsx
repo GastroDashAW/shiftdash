@@ -162,10 +162,11 @@ export default function ShiftTypes() {
       end_time: newShift.end_time || null,
       sort_order: maxOrder + 1,
       cost_center: newShift.cost_center || '',
+      break_minutes: parseInt(newShift.break_minutes) || 0,
     });
     if (error) { toast.error('Fehler beim Erstellen'); return; }
     toast.success('Dienst erstellt');
-    setNewShift({ name: '', short_code: '', color: '#3b82f6', start_time: '', end_time: '', cost_center: '' });
+    setNewShift({ name: '', short_code: '', color: '#3b82f6', start_time: '', end_time: '', cost_center: '', break_minutes: '0' });
     setShowAdd(false);
     loadShifts();
   };
