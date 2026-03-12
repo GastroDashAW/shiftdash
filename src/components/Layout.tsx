@@ -34,7 +34,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-2">
             <img src={shiftDashLogo} alt="ShiftDash" className="h-8 w-8 object-contain" />
-            <span className="font-heading text-lg font-semibold tracking-tight">ShiftDash</span>
+            <span className="font-heading text-lg font-semibold tracking-tight">{BRANDING.appName}</span>
           </div>
           
           <div className="flex items-center gap-2">
