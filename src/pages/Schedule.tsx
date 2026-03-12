@@ -438,11 +438,12 @@ export default function Schedule() {
       // 6. Get available employees with their available_days, cost_center, and allowed_shift_types
       const { data: empDetails } = await supabase
         .from('employees')
-        .select('id, available_days, pensum_percent, cost_center, allowed_shift_types')
+        .select('id, available_days, pensum_percent, cost_center, allowed_shift_types, employee_type')
         .eq('is_active', true);
       const empAvailability = new Map<string, string[]>();
       const empCostCenter = new Map<string, string>();
       const empAllowedShifts = new Map<string, string[]>();
+      const empType = new Map<string, string>();
       const dayLabels = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
       for (const emp of empDetails || []) {
         const days = Array.isArray(emp.available_days) ? (emp.available_days as string[]) : ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
@@ -450,6 +451,7 @@ export default function Schedule() {
         empCostCenter.set(emp.id, emp.cost_center || '');
         const allowed = Array.isArray(emp.allowed_shift_types) ? (emp.allowed_shift_types as string[]) : [];
         empAllowedShifts.set(emp.id, allowed);
+        empType.set(emp.id, emp.employee_type || 'fixed');
       }
 
       // Build shift cost center lookup
@@ -518,7 +520,13 @@ export default function Schedule() {
             return true;
           });
 
-          eligible.sort((a, b) => (employeeShiftCount[a.id] || 0) - (employeeShiftCount[b.id] || 0));
+          // Sort: Priority 1 = fixed employees, Priority 2 = hourly; within each group sort by least shifts
+          eligible.sort((a, b) => {
+            const aFixed = empType.get(a.id) === 'fixed' ? 0 : 1;
+            const bFixed = empType.get(b.id) === 'fixed' ? 0 : 1;
+            if (aFixed !== bFixed) return aFixed - bFixed;
+            return (employeeShiftCount[a.id] || 0) - (employeeShiftCount[b.id] || 0);
+          });
 
           const toAssign = Math.min(required, eligible.length);
           for (let i = 0; i < toAssign; i++) {
