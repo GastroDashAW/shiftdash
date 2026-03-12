@@ -436,15 +436,18 @@ export default function Schedule() {
       // 6. Get available employees with their available_days and cost_center
       const { data: empDetails } = await supabase
         .from('employees')
-        .select('id, available_days, pensum_percent, cost_center')
+        .select('id, available_days, pensum_percent, cost_center, allowed_shift_types')
         .eq('is_active', true);
       const empAvailability = new Map<string, string[]>();
       const empCostCenter = new Map<string, string>();
+      const empAllowedShifts = new Map<string, string[]>();
       const dayLabels = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
       for (const emp of empDetails || []) {
         const days = Array.isArray(emp.available_days) ? (emp.available_days as string[]) : ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
         empAvailability.set(emp.id, days);
         empCostCenter.set(emp.id, emp.cost_center || '');
+        const allowed = Array.isArray(emp.allowed_shift_types) ? (emp.allowed_shift_types as string[]) : [];
+        empAllowedShifts.set(emp.id, allowed);
       }
 
       // Build shift cost center lookup
@@ -508,11 +511,14 @@ export default function Schedule() {
             if (assignedToday.has(emp.id)) return false;
             const avail = empAvailability.get(emp.id) || [];
             if (!avail.includes(dayLabel)) return false;
-            // Match cost center: if shift has a cost center, only assign employees from that cost center
+            // Match cost center
             if (shiftCC && shiftCC !== '') {
               const empCC = empCostCenter.get(emp.id) || '';
               if (empCC !== shiftCC) return false;
             }
+            // Check allowed shift types: if employee has a selection, only assign matching shifts
+            const allowedShifts = empAllowedShifts.get(emp.id) || [];
+            if (allowedShifts.length > 0 && !allowedShifts.includes(shiftId)) return false;
             return true;
           });
 
