@@ -458,8 +458,9 @@ export default function TimeControl() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Pause (Min.)</Label>
+                <Label>Pause (Min.) <span className="text-xs font-normal text-muted-foreground">ArG Art. 15</span></Label>
                 <Input type="number" value={editBreak} onChange={e => setEditBreak(e.target.value)} min={0} />
+                <p className="text-[10px] text-muted-foreground">&gt;5.5h = 15' · &gt;7h = 30' · &gt;9h = 60' (gesetzl. Minimum)</p>
               </div>
               <div className="space-y-2">
                 <Label>Bemerkung</Label>
