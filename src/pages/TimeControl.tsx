@@ -434,7 +434,10 @@ export default function TimeControl() {
                     <CalendarClock className="h-4 w-4 text-primary" />
                     <div>
                       <p className="text-xs font-medium text-primary">Dienst: {editShift.name}</p>
-                      <p className="text-sm font-semibold">{editShift.start_time} – {editShift.end_time}</p>
+                      <p className="text-sm font-semibold">
+                        {editShift.start_time} – {editShift.end_time}
+                        {editShift.break_minutes > 0 && <span className="text-xs font-normal text-muted-foreground ml-1">· {editShift.break_minutes}' Pause</span>}
+                      </p>
                     </div>
                   </div>
                   <Button size="sm" variant="outline" onClick={applyShiftTimes}>
