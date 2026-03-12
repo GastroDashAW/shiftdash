@@ -88,6 +88,7 @@ export default function TimeControl() {
           start_time: a.shift_types.start_time ? a.shift_types.start_time.substring(0, 5) : null,
           end_time: a.shift_types.end_time ? a.shift_types.end_time.substring(0, 5) : null,
           color: a.shift_types.color,
+          break_minutes: a.shift_types.break_minutes || 0,
         };
       }
     });
