@@ -343,6 +343,11 @@ export default function ShiftTypes() {
                                 <Input type="time" value={editForm.end_time || ''} onChange={e => setEditForm(p => ({ ...p, end_time: e.target.value }))}
                                   max={latestEnd || undefined} />
                               </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Pause (Min.) <span className="text-muted-foreground">ArG Art. 15</span></Label>
+                                <Input type="number" min="0" value={String(editForm.break_minutes ?? 0)} onChange={e => setEditForm(p => ({ ...p, break_minutes: parseInt(e.target.value) || 0 }))} />
+                                <p className="text-[10px] text-muted-foreground">&gt;5.5h=15' · &gt;7h=30' · &gt;9h=60'</p>
+                              </div>
                             </div>
                             {validateShiftTime(editForm.start_time || null, editForm.end_time || null) && (
                               <div className="flex items-center gap-2 text-sm text-warning">
