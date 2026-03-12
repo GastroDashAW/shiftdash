@@ -2,7 +2,8 @@ import { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
-import { Clock, Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut, ClipboardCheck, LayoutDashboard, DollarSign, Building2, CalendarPlus } from 'lucide-react';
+import { Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut, ClipboardCheck, LayoutDashboard, DollarSign, Building2, CalendarPlus, Clock } from 'lucide-react';
+import shiftDashLogo from '@/assets/shiftdash-logo.png';
 import { useState } from 'react';
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -30,10 +31,8 @@ export function Layout({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent">
-              <Clock className="h-4 w-4 text-accent-foreground" />
-            </div>
-            <span className="font-heading text-lg font-semibold tracking-tight">EasyShift</span>
+            <img src={shiftDashLogo} alt="ShiftDash" className="h-8 w-8 object-contain" />
+            <span className="font-heading text-lg font-semibold tracking-tight">ShiftDash</span>
           </div>
           
           <div className="flex items-center gap-2">

@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { Clock } from 'lucide-react';
+import shiftDashLogo from '@/assets/shiftdash-logo.png';
 
 export function AuthPage() {
   const [email, setEmail] = useState('');
@@ -25,11 +25,9 @@ export function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-4">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl bg-accent">
-            <Clock className="h-7 w-7 text-accent-foreground" />
-          </div>
+          <img src={shiftDashLogo} alt="ShiftDash Logo" className="mx-auto h-20 w-20 object-contain" />
           <CardTitle className="font-heading text-2xl">
-            EasyShift
+            ShiftDash
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             Dienstplanung & Zeiterfassung
