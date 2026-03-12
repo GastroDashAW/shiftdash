@@ -360,7 +360,7 @@ export default function LeaveRequests() {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setManualDialogOpen(false)}>Abbrechen</Button>
-                <Button onClick={handleManualSubmit} disabled={manualSubmitting || !manualEmployeeId || manualDaysCount === 0}>
+                <Button onClick={handleManualSubmit} disabled={manualSubmitting || (manualType !== 'company_holiday' && !manualEmployeeId) || manualDaysCount === 0}>
                   {manualSubmitting ? 'Wird eingetragen...' : 'Eintragen & Genehmigen'}
                 </Button>
               </DialogFooter>
