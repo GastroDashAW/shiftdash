@@ -129,7 +129,9 @@ export default function TimeControl() {
       setEditAdjClockOut('');
     }
 
-    setEditBreak(String(entry.break_minutes || 0));
+    // Auto-suggest break from shift type if entry has no break set
+    const shiftBreak = shift?.break_minutes || 0;
+    setEditBreak(String(entry.break_minutes ?? shiftBreak));
     setEditNotes(entry.notes || '');
   };
 
