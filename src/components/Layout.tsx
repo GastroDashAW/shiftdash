@@ -2,7 +2,8 @@ import { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
-import { Clock, Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut, ClipboardCheck, LayoutDashboard, DollarSign, Building2, CalendarPlus } from 'lucide-react';
+import { Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut, ClipboardCheck, LayoutDashboard, DollarSign, Building2, CalendarPlus, Clock } from 'lucide-react';
+import shiftDashLogo from '@/assets/shiftdash-logo.png';
 import { useState } from 'react';
 
 export function Layout({ children }: { children: ReactNode }) {
