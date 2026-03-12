@@ -216,6 +216,7 @@ export default function Employees() {
       login_password: '',
       pensum_percent: String(emp.pensum_percent ?? 100),
       available_days: emp.available_days || ['Mo', 'Di', 'Mi', 'Do', 'Fr'],
+      allowed_shift_types: (emp.allowed_shift_types as string[]) || [],
     });
     setEditingId(emp.id);
     setSheetOpen(true);
