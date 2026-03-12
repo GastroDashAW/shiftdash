@@ -739,6 +739,28 @@ export default function Schedule() {
             generating={autoGenerating}
             defaultMonth={new Date(year, month, 1)}
           />
+          {undoSnapshot && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="w-full gap-2 text-sm">
+                  <Undo2 className="h-4 w-4" />
+                  Letzte automatische Erstellung zurückstellen
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Zurückstellen?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Der automatisch erstellte Dienstplan ({undoSnapshot.startDate} – {undoSnapshot.endDate}) wird durch den vorherigen Stand ersetzt ({undoSnapshot.assignments.length} Einträge).
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleUndoGenerate}>Zurückstellen</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
           <ScheduleArchivePanel
             currentAssignments={assignments.map(a => ({ employee_id: a.employee_id, date: a.date, shift_type_id: a.shift_type_id }))}
             currentStartDate={`${year}-${String(month + 1).padStart(2, '0')}-01`}
