@@ -24,6 +24,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { to: '/export', label: 'Export', icon: FileDown, adminOnly: true },
     { to: '/budget', label: 'Budget', icon: DollarSign, adminOnly: true },
     { to: '/business', label: 'Betrieb', icon: Building2, adminOnly: true },
+    { to: '/settings', label: 'Einstellungen', icon: Settings, adminOnly: true },
   ];
 
   const visibleItems = navItems.filter(item => !item.adminOnly || isAdmin);

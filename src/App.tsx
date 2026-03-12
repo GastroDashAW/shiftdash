@@ -53,6 +53,7 @@ function AppContent() {
               <Route path="/export" element={<ProtectedRoute adminOnly><ExportPage /></ProtectedRoute>} />
               <Route path="/budget" element={<ProtectedRoute adminOnly><Budget /></ProtectedRoute>} />
               <Route path="/business" element={<ProtectedRoute adminOnly><Business /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Layout>
