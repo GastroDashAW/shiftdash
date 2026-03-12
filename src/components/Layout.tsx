@@ -5,6 +5,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut, ClipboardCheck, LayoutDashboard, DollarSign, Building2, CalendarPlus, Clock } from 'lucide-react';
 import shiftDashLogo from '@/assets/shiftdash-logo.png';
 import { useState } from 'react';
+import { BRANDING } from '@/config/branding';
+import { StagingBanner } from '@/components/StagingBanner';
 
 export function Layout({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -28,11 +30,12 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
+      <StagingBanner />
       <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-2">
             <img src={shiftDashLogo} alt="ShiftDash" className="h-8 w-8 object-contain" />
-            <span className="font-heading text-lg font-semibold tracking-tight">ShiftDash</span>
+            <span className="font-heading text-lg font-semibold tracking-tight">{BRANDING.appName}</span>
           </div>
           
           <div className="flex items-center gap-2">
