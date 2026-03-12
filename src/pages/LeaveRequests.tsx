@@ -509,7 +509,7 @@ export default function LeaveRequests() {
                       )}
                       <p>
                         <Badge variant="secondary" className="text-xs mr-2">
-                          {req.request_type === 'vacation' ? 'Ferien' : 'Frei'}
+                          {req.request_type === 'vacation' ? 'Ferien' : req.request_type === 'company_holiday' ? 'Betriebsferien' : 'Frei'}
                         </Badge>
                         {format(new Date(req.start_date), 'dd.MM.yyyy')} – {format(new Date(req.end_date), 'dd.MM.yyyy')}
                         <span className="text-muted-foreground ml-2">({req.days_count} {req.days_count === 1 ? 'Tag' : 'Tage'})</span>
