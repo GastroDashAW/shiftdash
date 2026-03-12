@@ -271,6 +271,11 @@ export default function ShiftTypes() {
                 <Input type="time" value={newShift.end_time} onChange={e => setNewShift(p => ({ ...p, end_time: e.target.value }))}
                   max={latestEnd || undefined} />
               </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Pause (Min.) <span className="text-muted-foreground">ArG Art. 15</span></Label>
+                <Input type="number" min="0" value={newShift.break_minutes} onChange={e => setNewShift(p => ({ ...p, break_minutes: e.target.value }))} placeholder="z.B. 30" />
+                <p className="text-[10px] text-muted-foreground">&gt;5.5h=15' · &gt;7h=30' · &gt;9h=60'</p>
+              </div>
             </div>
             {validateShiftTime(newShift.start_time || null, newShift.end_time || null) && (
               <div className="flex items-center gap-2 text-sm text-warning">
