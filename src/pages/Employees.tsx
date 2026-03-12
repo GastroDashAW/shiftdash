@@ -31,6 +31,7 @@ export interface EmployeeForm {
   login_password: string;
   pensum_percent: string;
   available_days: string[];
+  allowed_shift_types: string[];
 }
 
 export const ALL_WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] as const;
@@ -50,6 +51,7 @@ export const emptyForm: EmployeeForm = {
   login_password: '',
   pensum_percent: '100',
   available_days: ['Mo', 'Di', 'Mi', 'Do', 'Fr'],
+  allowed_shift_types: [],
 };
 
 // L-GAV: max monthly hours = weekly_hours × 4.33
@@ -118,6 +120,7 @@ export default function Employees() {
       position: form.position.trim(),
       pensum_percent: parseFloat(form.pensum_percent) || 100,
       available_days: form.available_days,
+      allowed_shift_types: form.allowed_shift_types,
     };
 
     let savedId = editingId;
@@ -213,6 +216,7 @@ export default function Employees() {
       login_password: '',
       pensum_percent: String(emp.pensum_percent ?? 100),
       available_days: emp.available_days || ['Mo', 'Di', 'Mi', 'Do', 'Fr'],
+      allowed_shift_types: (emp.allowed_shift_types as string[]) || [],
     });
     setEditingId(emp.id);
     setSheetOpen(true);

@@ -97,6 +97,7 @@ export type Database = {
       }
       employees: {
         Row: {
+          allowed_shift_types: Json | null
           available_days: Json | null
           cost_center: string
           created_at: string
@@ -118,6 +119,7 @@ export type Database = {
           weekly_hours: number | null
         }
         Insert: {
+          allowed_shift_types?: Json | null
           available_days?: Json | null
           cost_center?: string
           created_at?: string
@@ -139,6 +141,7 @@ export type Database = {
           weekly_hours?: number | null
         }
         Update: {
+          allowed_shift_types?: Json | null
           available_days?: Json | null
           cost_center?: string
           created_at?: string

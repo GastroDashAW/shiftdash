@@ -1,0 +1,1 @@
+ALTER TABLE public.employees ADD COLUMN allowed_shift_types jsonb DEFAULT '[]'::jsonb;

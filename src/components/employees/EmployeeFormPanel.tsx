@@ -11,6 +11,14 @@ import { EmployeeForm, calcHourlyRate, ALL_WEEKDAYS } from '@/pages/Employees';
 
 type EmployeeType = 'fixed' | 'hourly';
 
+interface ShiftType {
+  id: string;
+  name: string;
+  short_code: string;
+  color: string;
+  cost_center: string;
+}
+
 interface EmployeeFormPanelProps {
   form: EmployeeForm;
   setForm: React.Dispatch<React.SetStateAction<EmployeeForm>>;
@@ -25,6 +33,7 @@ export function EmployeeFormPanel({ form, setForm, editingId, employees, creatin
   const hasLogin = !!currentEmp?.user_id;
 
   const [openDays, setOpenDays] = useState<string[]>([...ALL_WEEKDAYS]);
+  const [shiftTypes, setShiftTypes] = useState<ShiftType[]>([]);
 
   useEffect(() => {
     supabase.from('business_settings').select('opening_days').limit(1).single().then(({ data }) => {
@@ -32,6 +41,9 @@ export function EmployeeFormPanel({ form, setForm, editingId, employees, creatin
         const days = (data.opening_days as string).split(',').map(d => d.trim()).filter(Boolean);
         if (days.length > 0) setOpenDays(days);
       }
+    });
+    supabase.from('shift_types').select('id, name, short_code, color, cost_center').order('sort_order').then(({ data }) => {
+      if (data) setShiftTypes(data);
     });
   }, []);
 
@@ -43,6 +55,30 @@ export function EmployeeFormPanel({ form, setForm, editingId, employees, creatin
         : [...f.available_days, day],
     }));
   };
+
+  const toggleShiftType = (shiftId: string) => {
+    setForm(f => ({
+      ...f,
+      allowed_shift_types: f.allowed_shift_types.includes(shiftId)
+        ? f.allowed_shift_types.filter(id => id !== shiftId)
+        : [...f.allowed_shift_types, shiftId],
+    }));
+  };
+
+  // Filter shift types by selected cost center
+  const availableShifts = shiftTypes.filter(s => s.cost_center === form.cost_center);
+
+  // When cost_center changes, remove shift types that no longer match
+  useEffect(() => {
+    const validIds = new Set(availableShifts.map(s => s.id));
+    setForm(f => {
+      const filtered = f.allowed_shift_types.filter(id => validIds.has(id));
+      if (filtered.length !== f.allowed_shift_types.length) {
+        return { ...f, allowed_shift_types: filtered };
+      }
+      return f;
+    });
+  }, [form.cost_center, availableShifts.length]);
 
   return (
     <div className="space-y-4 pt-4">
@@ -136,6 +172,41 @@ export function EmployeeFormPanel({ form, setForm, editingId, employees, creatin
           })}
         </div>
         <p className="text-[10px] text-muted-foreground">Nur Öffnungstage des Betriebs wählbar</p>
+      </div>
+
+      {/* Erlaubte Schichten */}
+      <div className="space-y-1.5">
+        <Label className="text-xs">Mögliche Schichten</Label>
+        {!form.cost_center ? (
+          <p className="text-[10px] text-muted-foreground">Bitte zuerst eine Kostenstelle wählen</p>
+        ) : availableShifts.length === 0 ? (
+          <p className="text-[10px] text-muted-foreground">Keine Schichten für diese Kostenstelle definiert</p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {availableShifts.map(shift => {
+              const isSelected = form.allowed_shift_types.includes(shift.id);
+              return (
+                <button
+                  key={shift.id}
+                  type="button"
+                  onClick={() => toggleShiftType(shift.id)}
+                  className={`px-2.5 py-1.5 rounded text-xs font-medium transition-colors border ${
+                    isSelected
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-border bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  <span
+                    className="inline-block w-2 h-2 rounded-full mr-1.5"
+                    style={{ backgroundColor: shift.color }}
+                  />
+                  {shift.short_code} – {shift.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <p className="text-[10px] text-muted-foreground">Mehrfachauswahl möglich – nur Schichten der gewählten Kostenstelle</p>
       </div>
 
       {form.employee_type === 'fixed' ? (
