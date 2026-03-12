@@ -11,6 +11,8 @@ import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, Printer, Filter,
 import { validateSchedule, LgavViolation } from '@/lib/lgav-schedule-validation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
+import { ScheduleGenerateDialog } from '@/components/schedule/ScheduleGenerateDialog';
+import { ScheduleArchivePanel } from '@/components/schedule/ScheduleArchivePanel';
 
 interface ShiftType {
   id: string;
