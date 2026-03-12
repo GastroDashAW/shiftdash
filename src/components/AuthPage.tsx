@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { Clock } from 'lucide-react';
+import shiftDashLogo from '@/assets/shiftdash-logo.png';
 
 export function AuthPage() {
   const [email, setEmail] = useState('');
