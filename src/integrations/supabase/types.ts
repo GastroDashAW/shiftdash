@@ -550,6 +550,7 @@ export type Database = {
       }
       shift_types: {
         Row: {
+          break_minutes: number | null
           color: string
           cost_center: string
           created_at: string
@@ -561,6 +562,7 @@ export type Database = {
           start_time: string | null
         }
         Insert: {
+          break_minutes?: number | null
           color?: string
           cost_center?: string
           created_at?: string
@@ -572,6 +574,7 @@ export type Database = {
           start_time?: string | null
         }
         Update: {
+          break_minutes?: number | null
           color?: string
           cost_center?: string
           created_at?: string
