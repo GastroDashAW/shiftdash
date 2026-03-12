@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
-import { Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut, ClipboardCheck, LayoutDashboard, DollarSign, Building2, CalendarPlus, Clock } from 'lucide-react';
+import { Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut, ClipboardCheck, LayoutDashboard, DollarSign, Building2, CalendarPlus, Clock, Settings } from 'lucide-react';
 import shiftDashLogo from '@/assets/shiftdash-logo.png';
 import { useState } from 'react';
 import { BRANDING } from '@/config/branding';
@@ -24,6 +24,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { to: '/export', label: 'Export', icon: FileDown, adminOnly: true },
     { to: '/budget', label: 'Budget', icon: DollarSign, adminOnly: true },
     { to: '/business', label: 'Betrieb', icon: Building2, adminOnly: true },
+    { to: '/settings', label: 'Einstellungen', icon: Settings, adminOnly: true },
   ];
 
   const visibleItems = navItems.filter(item => !item.adminOnly || isAdmin);
