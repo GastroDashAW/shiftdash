@@ -7,10 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, Printer, Filter, Wand2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, Printer, Filter } from 'lucide-react';
 import { validateSchedule, LgavViolation } from '@/lib/lgav-schedule-validation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
+import { ScheduleGenerateDialog } from '@/components/schedule/ScheduleGenerateDialog';
+import { ScheduleArchivePanel } from '@/components/schedule/ScheduleArchivePanel';
 
 interface ShiftType {
   id: string;
@@ -380,7 +382,7 @@ export default function Schedule() {
 
   const [autoGenerating, setAutoGenerating] = useState(false);
 
-  const handleAutoGenerate = async () => {
+  const handleAutoGenerate = async (genStartDate: Date, genEndDate: Date) => {
     if (!isAdmin) return;
     setAutoGenerating(true);
 
@@ -397,25 +399,25 @@ export default function Schedule() {
       const { data: bizData } = await supabase.from('business_settings').select('closed_days').limit(1).maybeSingle();
       const closedDays: number[] = Array.isArray(bizData?.closed_days) ? (bizData.closed_days as number[]) : [];
 
-      // 3. Load approved leave requests for this month
-      const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-      const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+      // 3. Load approved leave requests for the date range
+      const startDateStr = `${genStartDate.getFullYear()}-${String(genStartDate.getMonth() + 1).padStart(2, '0')}-${String(genStartDate.getDate()).padStart(2, '0')}`;
+      const endDateStr = `${genEndDate.getFullYear()}-${String(genEndDate.getMonth() + 1).padStart(2, '0')}-${String(genEndDate.getDate()).padStart(2, '0')}`;
       const { data: leaveData } = await supabase
         .from('leave_requests')
         .select('employee_id, start_date, end_date, request_type')
         .eq('status', 'approved')
-        .lte('start_date', endDate)
-        .gte('end_date', startDate);
+        .lte('start_date', endDateStr)
+        .gte('end_date', startDateStr);
 
       // Build set of employee-date combos that are on leave
       const onLeave = new Set<string>();
-      const leaveShiftMap = new Map<string, string>(); // employee-date -> leave type
+      const leaveShiftMap = new Map<string, string>();
       for (const lr of leaveData || []) {
         const lStart = new Date(lr.start_date);
         const lEnd = new Date(lr.end_date);
         for (let d = new Date(lStart); d <= lEnd; d.setDate(d.getDate() + 1)) {
-          if (d.getMonth() === month && d.getFullYear() === year) {
-            const key = `${lr.employee_id}-${d.getDate()}`;
+          if (d >= genStartDate && d <= genEndDate) {
+            const key = `${lr.employee_id}-${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
             onLeave.add(key);
             leaveShiftMap.set(key, lr.request_type);
           }
@@ -433,7 +435,7 @@ export default function Schedule() {
       const freiShift = shiftTypes.find(s => s.short_code.toLowerCase() === 'f' || s.name.toLowerCase() === 'frei');
       const ferienShift = shiftTypes.find(s => s.short_code === 'V' || s.name.toLowerCase() === 'ferien');
 
-      // 6. Get available employees with their available_days and cost_center
+      // 6. Get available employees with their available_days, cost_center, and allowed_shift_types
       const { data: empDetails } = await supabase
         .from('employees')
         .select('id, available_days, pensum_percent, cost_center, allowed_shift_types')
@@ -456,27 +458,25 @@ export default function Schedule() {
         shiftCostCenter.set(st.id, st.cost_center || '');
       }
 
-      // 7. Delete existing assignments for this month (fresh generation)
+      // 7. Delete existing assignments for the date range (fresh generation)
       await supabase
         .from('schedule_assignments')
         .delete()
-        .gte('date', startDate)
-        .lte('date', endDate);
+        .gte('date', startDateStr)
+        .lte('date', endDateStr);
 
       // 8. Generate assignments day by day
       const newAssignments: { employee_id: string; date: string; shift_type_id: string }[] = [];
-      // Track how many shifts each employee has been assigned this month (for fair distribution)
       const employeeShiftCount: Record<string, number> = {};
       for (const emp of employees) employeeShiftCount[emp.id] = 0;
 
-      // Work shifts (those in the config)
       const workShiftIds = Object.keys(configMap);
 
-      for (let d = 1; d <= daysInMonth; d++) {
-        const date = new Date(year, month, d);
-        const dow = date.getDay(); // 0=Sun
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      for (let d = new Date(genStartDate); d <= genEndDate; d.setDate(d.getDate() + 1)) {
+        const dow = d.getDay();
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         const dayLabel = dayLabels[dow];
+        const leaveKeyPrefix = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 
         // Closed day: assign Frei to everyone
         if (closedDays.includes(dow)) {
@@ -488,12 +488,11 @@ export default function Schedule() {
           continue;
         }
 
-        // Track who is already assigned today
         const assignedToday = new Set<string>();
 
         // First: assign leave (Ferien) for employees on approved leave
         for (const emp of employees) {
-          const leaveKey = `${emp.id}-${d}`;
+          const leaveKey = `${emp.id}-${leaveKeyPrefix}`;
           if (onLeave.has(leaveKey) && ferienShift) {
             newAssignments.push({ employee_id: emp.id, date: dateStr, shift_type_id: ferienShift.id });
             assignedToday.add(emp.id);
@@ -505,24 +504,20 @@ export default function Schedule() {
           const required = configMap[shiftId]?.[dow] ?? 0;
           if (required <= 0) continue;
 
-          // Get eligible employees: available on this day, not yet assigned, not on leave, matching cost center
           const shiftCC = shiftCostCenter.get(shiftId) || '';
           const eligible = employees.filter(emp => {
             if (assignedToday.has(emp.id)) return false;
             const avail = empAvailability.get(emp.id) || [];
             if (!avail.includes(dayLabel)) return false;
-            // Match cost center
             if (shiftCC && shiftCC !== '') {
               const empCC = empCostCenter.get(emp.id) || '';
               if (empCC !== shiftCC) return false;
             }
-            // Check allowed shift types: if employee has a selection, only assign matching shifts
             const allowedShifts = empAllowedShifts.get(emp.id) || [];
             if (allowedShifts.length > 0 && !allowedShifts.includes(shiftId)) return false;
             return true;
           });
 
-          // Sort by least shifts assigned (fair distribution)
           eligible.sort((a, b) => (employeeShiftCount[a.id] || 0) - (employeeShiftCount[b.id] || 0));
 
           const toAssign = Math.min(required, eligible.length);
@@ -533,7 +528,7 @@ export default function Schedule() {
           }
         }
 
-        // Third: assign Frei to unassigned employees (not available this day or leftover)
+        // Third: assign Frei to unassigned employees
         if (freiShift) {
           for (const emp of employees) {
             if (!assignedToday.has(emp.id)) {
@@ -545,7 +540,6 @@ export default function Schedule() {
 
       // 9. Batch insert
       if (newAssignments.length > 0) {
-        // Insert in chunks of 500
         for (let i = 0; i < newAssignments.length; i += 500) {
           const chunk = newAssignments.slice(i, i + 500);
           const { error } = await supabase.from('schedule_assignments').insert(chunk);
@@ -557,7 +551,8 @@ export default function Schedule() {
         }
       }
 
-      toast.success(`Dienstplan für ${MONTHS[month]} ${year} automatisch erstellt (${newAssignments.length} Einträge)`);
+      const days_count = Math.ceil((genEndDate.getTime() - genStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      toast.success(`Dienstplan für ${days_count} Tage erstellt (${newAssignments.length} Einträge)`);
       loadData();
     } catch (err: any) {
       toast.error('Fehler bei der automatischen Erstellung: ' + err.message);
@@ -695,18 +690,20 @@ export default function Schedule() {
         </CardContent>
       </Card>
 
-      {/* Auto-generate button – admin only */}
+      {/* Auto-generate + Archive – admin only */}
       {isAdmin && (
-        <div className="print:hidden">
-          <Button
-            size="lg"
-            onClick={handleAutoGenerate}
-            disabled={autoGenerating}
-            className="w-full gap-3 text-base font-semibold py-6"
-          >
-            <Wand2 className="h-5 w-5" />
-            {autoGenerating ? 'Dienstplan wird erstellt...' : 'Automatisch erstellen'}
-          </Button>
+        <div className="print:hidden space-y-3">
+          <ScheduleGenerateDialog
+            onGenerate={handleAutoGenerate}
+            generating={autoGenerating}
+            defaultMonth={new Date(year, month, 1)}
+          />
+          <ScheduleArchivePanel
+            currentAssignments={assignments.map(a => ({ employee_id: a.employee_id, date: a.date, shift_type_id: a.shift_type_id }))}
+            currentStartDate={`${year}-${String(month + 1).padStart(2, '0')}-01`}
+            currentEndDate={`${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`}
+            onLoadArchive={() => loadData()}
+          />
         </div>
       )}
 
