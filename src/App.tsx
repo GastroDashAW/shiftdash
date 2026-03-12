@@ -17,6 +17,7 @@ import TimeControl from "./pages/TimeControl";
 import Budget from "./pages/Budget";
 import Business from "./pages/Business";
 import LeaveRequests from "./pages/LeaveRequests";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
