@@ -72,7 +72,7 @@ export default function TimeControl() {
         .order('employee_id'),
       supabase
         .from('schedule_assignments')
-        .select('employee_id, shift_types(name, short_code, start_time, end_time, color)')
+        .select('employee_id, shift_types(name, short_code, start_time, end_time, color, break_minutes)')
         .eq('date', selectedDate),
     ]);
 
