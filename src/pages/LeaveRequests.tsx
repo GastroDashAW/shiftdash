@@ -297,19 +297,27 @@ export default function LeaveRequests() {
               </DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Mitarbeiter *</label>
-                    <Select value={manualEmployeeId} onValueChange={setManualEmployeeId}>
-                      <SelectTrigger><SelectValue placeholder="Wählen" /></SelectTrigger>
-                      <SelectContent>
-                        {allEmployees.map(emp => (
-                          <SelectItem key={emp.id} value={emp.id}>
-                            {emp.last_name}, {emp.first_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {manualType !== 'company_holiday' && (
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium">Mitarbeiter *</label>
+                      <Select value={manualEmployeeId} onValueChange={setManualEmployeeId}>
+                        <SelectTrigger><SelectValue placeholder="Wählen" /></SelectTrigger>
+                        <SelectContent>
+                          {allEmployees.map(emp => (
+                            <SelectItem key={emp.id} value={emp.id}>
+                              {emp.last_name}, {emp.first_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {manualType === 'company_holiday' && (
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium">Betrifft</label>
+                      <p className="text-sm text-muted-foreground pt-2">Alle {allEmployees.length} aktiven Mitarbeiter</p>
+                    </div>
+                  )}
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium">Typ *</label>
                     <Select value={manualType} onValueChange={(v) => setManualType(v as RequestType)}>
