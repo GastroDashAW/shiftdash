@@ -167,7 +167,7 @@ export default function LeaveRequests() {
     }
 
     // Create schedule assignments
-    const shiftTypeCode = manualType === 'vacation' ? 'V' : 'X';
+    const shiftTypeCode = (manualType === 'vacation' || manualType === 'company_holiday') ? 'V' : 'X';
     const { data: shiftType } = await supabase
       .from('shift_types')
       .select('id')
