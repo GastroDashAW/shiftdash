@@ -445,7 +445,7 @@ export default function LeaveRequests() {
                       {req.employees?.first_name} {req.employees?.last_name}
                     </span>
                     <Badge variant="secondary" className="ml-2 text-xs">
-                      {req.request_type === 'vacation' ? 'Ferien' : 'Frei'}
+                      {req.request_type === 'vacation' ? 'Ferien' : req.request_type === 'company_holiday' ? 'Betriebsferien' : 'Frei'}
                     </Badge>
                   </div>
                   <span className="text-sm text-muted-foreground">
