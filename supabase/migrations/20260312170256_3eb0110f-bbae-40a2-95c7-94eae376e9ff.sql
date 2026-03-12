@@ -1,0 +1,1 @@
+DELETE FROM public.schedule_assignments WHERE date >= '2026-04-01' AND date <= '2026-04-30';
