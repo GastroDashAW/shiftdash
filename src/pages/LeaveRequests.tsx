@@ -8,10 +8,11 @@ import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { CalendarDays, Send, Check, X, Clock } from 'lucide-react';
+import { CalendarDays, Send, Check, X, Clock, Plus } from 'lucide-react';
 import { addDays, differenceInCalendarDays, format, eachDayOfInterval, isBefore, startOfDay } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { DateRange } from 'react-day-picker';
 
 type RequestType = 'vacation' | 'day_off';
@@ -30,6 +31,13 @@ interface LeaveRequest {
   employees?: { first_name: string; last_name: string };
 }
 
+interface Employee {
+  id: string;
+  first_name: string;
+  last_name: string;
+  cost_center: string;
+}
+
 const STATUS_MAP: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   pending: { label: 'Ausstehend', variant: 'outline' },
   approved: { label: 'Genehmigt', variant: 'default' },
@@ -44,6 +52,15 @@ export default function LeaveRequests() {
   const [submitting, setSubmitting] = useState(false);
   const [adminNote, setAdminNote] = useState('');
   const [actionId, setActionId] = useState<string | null>(null);
+
+  // Admin manual entry state
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
+  const [manualDialogOpen, setManualDialogOpen] = useState(false);
+  const [manualEmployeeId, setManualEmployeeId] = useState('');
+  const [manualType, setManualType] = useState<RequestType>('vacation');
+  const [manualRange, setManualRange] = useState<DateRange | undefined>();
+  const [manualNote, setManualNote] = useState('');
+  const [manualSubmitting, setManualSubmitting] = useState(false);
 
   const minDaysAhead = requestType === 'vacation' ? 30 : 14;
   const minDate = addDays(startOfDay(new Date()), minDaysAhead);
@@ -62,7 +79,19 @@ export default function LeaveRequests() {
     setRequests((data as any[]) || []);
   };
 
-  useEffect(() => { loadRequests(); }, [isAdmin, employeeId]);
+  const loadEmployees = async () => {
+    const { data } = await supabase
+      .from('employees')
+      .select('id, first_name, last_name, cost_center')
+      .eq('is_active', true)
+      .order('last_name');
+    setAllEmployees(data || []);
+  };
+
+  useEffect(() => {
+    loadRequests();
+    if (isAdmin) loadEmployees();
+  }, [isAdmin, employeeId]);
 
   // Realtime subscription
   useEffect(() => {
@@ -77,6 +106,10 @@ export default function LeaveRequests() {
 
   const daysCount = dateRange?.from && dateRange?.to
     ? differenceInCalendarDays(dateRange.to, dateRange.from) + 1
+    : 0;
+
+  const manualDaysCount = manualRange?.from && manualRange?.to
+    ? differenceInCalendarDays(manualRange.to, manualRange.from) + 1
     : 0;
 
   const handleSubmit = async () => {
@@ -104,6 +137,65 @@ export default function LeaveRequests() {
       setDateRange(undefined);
     }
     setSubmitting(false);
+  };
+
+  const handleManualSubmit = async () => {
+    if (!manualEmployeeId) { toast.error('Bitte Mitarbeiter wählen'); return; }
+    if (!manualRange?.from || !manualRange?.to) { toast.error('Bitte Zeitraum wählen'); return; }
+
+    setManualSubmitting(true);
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+
+    // Insert as already approved
+    const { error } = await supabase.from('leave_requests').insert({
+      employee_id: manualEmployeeId,
+      request_type: manualType,
+      start_date: format(manualRange.from, 'yyyy-MM-dd'),
+      end_date: format(manualRange.to, 'yyyy-MM-dd'),
+      days_count: manualDaysCount,
+      status: 'approved',
+      admin_note: manualNote.trim() || null,
+      reviewed_by: userId,
+      reviewed_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      toast.error('Fehler: ' + error.message);
+      setManualSubmitting(false);
+      return;
+    }
+
+    // Create schedule assignments
+    const shiftTypeCode = manualType === 'vacation' ? 'V' : 'X';
+    const { data: shiftType } = await supabase
+      .from('shift_types')
+      .select('id')
+      .eq('short_code', shiftTypeCode)
+      .single();
+
+    if (shiftType) {
+      const days = eachDayOfInterval({ start: manualRange.from, end: manualRange.to });
+      const assignments = days.map(day => ({
+        employee_id: manualEmployeeId,
+        date: format(day, 'yyyy-MM-dd'),
+        shift_type_id: shiftType.id,
+      }));
+
+      for (const a of assignments) {
+        await supabase.from('schedule_assignments').delete()
+          .eq('employee_id', a.employee_id)
+          .eq('date', a.date);
+      }
+
+      await supabase.from('schedule_assignments').insert(assignments);
+    }
+
+    toast.success('Abwesenheit eingetragen und im Dienstplan übernommen');
+    setManualDialogOpen(false);
+    setManualEmployeeId('');
+    setManualRange(undefined);
+    setManualNote('');
+    setManualSubmitting(false);
   };
 
   const handleDecision = async (requestId: string, decision: 'approved' | 'rejected') => {
@@ -146,7 +238,6 @@ export default function LeaveRequests() {
             shift_type_id: shiftType.id,
           }));
 
-          // Delete existing assignments for those dates first
           for (const a of assignments) {
             await supabase
               .from('schedule_assignments')
@@ -178,10 +269,92 @@ export default function LeaveRequests() {
 
   return (
     <div className="space-y-6 pb-20 md:pb-4">
-      <h1 className="font-heading text-xl md:text-2xl font-bold flex items-center gap-2">
-        <CalendarDays className="h-5 w-5 md:h-6 md:w-6" />
-        Abwesenheitsanträge
-      </h1>
+      <div className="flex items-center justify-between">
+        <h1 className="font-heading text-xl md:text-2xl font-bold flex items-center gap-2">
+          <CalendarDays className="h-5 w-5 md:h-6 md:w-6" />
+          Abwesenheitsanträge
+        </h1>
+
+        {/* Admin: manual entry button */}
+        {isAdmin && (
+          <Dialog open={manualDialogOpen} onOpenChange={setManualDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Manuell eintragen
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Abwesenheit manuell eintragen</DialogTitle>
+                <DialogDescription>
+                  Trage eine Abwesenheit direkt für einen Mitarbeiter ein. Der Eintrag wird sofort genehmigt und im Dienstplan übernommen.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Mitarbeiter *</label>
+                    <Select value={manualEmployeeId} onValueChange={setManualEmployeeId}>
+                      <SelectTrigger><SelectValue placeholder="Wählen" /></SelectTrigger>
+                      <SelectContent>
+                        {allEmployees.map(emp => (
+                          <SelectItem key={emp.id} value={emp.id}>
+                            {emp.last_name}, {emp.first_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium">Typ *</label>
+                    <Select value={manualType} onValueChange={(v) => setManualType(v as RequestType)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="vacation">Ferien</SelectItem>
+                        <SelectItem value="day_off">Frei</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium">Zeitraum *</label>
+                  <Calendar
+                    mode="range"
+                    selected={manualRange}
+                    onSelect={setManualRange}
+                    locale={de}
+                    numberOfMonths={2}
+                    className={cn("p-3 pointer-events-auto rounded-md border mt-1.5")}
+                  />
+                  {manualDaysCount > 0 && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {manualDaysCount} {manualDaysCount === 1 ? 'Tag' : 'Tage'}: {manualRange?.from && format(manualRange.from, 'dd.MM.yyyy')} – {manualRange?.to && format(manualRange.to, 'dd.MM.yyyy')}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Bemerkung</label>
+                  <Textarea
+                    placeholder="Optional"
+                    value={manualNote}
+                    onChange={e => setManualNote(e.target.value)}
+                    rows={2}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setManualDialogOpen(false)}>Abbrechen</Button>
+                <Button onClick={handleManualSubmit} disabled={manualSubmitting || !manualEmployeeId || manualDaysCount === 0}>
+                  {manualSubmitting ? 'Wird eingetragen...' : 'Eintragen & Genehmigen'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
 
       {/* Employee request form */}
       {employeeId && (
