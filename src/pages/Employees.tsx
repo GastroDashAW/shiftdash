@@ -31,6 +31,7 @@ export interface EmployeeForm {
   login_password: string;
   pensum_percent: string;
   available_days: string[];
+  allowed_shift_types: string[];
 }
 
 export const ALL_WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'] as const;
