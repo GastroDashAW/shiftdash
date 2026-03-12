@@ -29,7 +29,7 @@ export function AuthPage() {
             <Clock className="h-7 w-7 text-accent-foreground" />
           </div>
           <CardTitle className="font-heading text-2xl">
-            EasyShift
+            ShiftDash
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             Dienstplanung & Zeiterfassung
