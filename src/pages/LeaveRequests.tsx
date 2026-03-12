@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import type { DateRange } from 'react-day-picker';
 
-type RequestType = 'vacation' | 'day_off';
+type RequestType = 'vacation' | 'day_off' | 'company_holiday';
 
 interface LeaveRequest {
   id: string;
@@ -140,29 +140,30 @@ export default function LeaveRequests() {
   };
 
   const handleManualSubmit = async () => {
-    if (!manualEmployeeId) { toast.error('Bitte Mitarbeiter wählen'); return; }
+    if (manualType !== 'company_holiday' && !manualEmployeeId) { toast.error('Bitte Mitarbeiter wählen'); return; }
     if (!manualRange?.from || !manualRange?.to) { toast.error('Bitte Zeitraum wählen'); return; }
 
     setManualSubmitting(true);
     const userId = (await supabase.auth.getUser()).data.user?.id;
 
-    // Insert as already approved
-    const { error } = await supabase.from('leave_requests').insert({
-      employee_id: manualEmployeeId,
-      request_type: manualType,
-      start_date: format(manualRange.from, 'yyyy-MM-dd'),
-      end_date: format(manualRange.to, 'yyyy-MM-dd'),
-      days_count: manualDaysCount,
-      status: 'approved',
-      admin_note: manualNote.trim() || null,
-      reviewed_by: userId,
-      reviewed_at: new Date().toISOString(),
-    });
+    // For company holidays: apply to ALL active employees
+    const targetEmployeeIds = manualType === 'company_holiday'
+      ? allEmployees.map(e => e.id)
+      : [manualEmployeeId];
 
-    if (error) {
-      toast.error('Fehler: ' + error.message);
-      setManualSubmitting(false);
-      return;
+    // Insert leave requests for all targets
+    for (const empId of targetEmployeeIds) {
+      await supabase.from('leave_requests').insert({
+        employee_id: empId,
+        request_type: manualType,
+        start_date: format(manualRange.from!, 'yyyy-MM-dd'),
+        end_date: format(manualRange.to!, 'yyyy-MM-dd'),
+        days_count: manualDaysCount,
+        status: 'approved',
+        admin_note: manualNote.trim() || (manualType === 'company_holiday' ? 'Betriebsferien' : null),
+        reviewed_by: userId,
+        reviewed_at: new Date().toISOString(),
+      });
     }
 
     // Create schedule assignments
@@ -175,22 +176,25 @@ export default function LeaveRequests() {
 
     if (shiftType) {
       const days = eachDayOfInterval({ start: manualRange.from, end: manualRange.to });
-      const assignments = days.map(day => ({
-        employee_id: manualEmployeeId,
-        date: format(day, 'yyyy-MM-dd'),
-        shift_type_id: shiftType.id,
-      }));
+      for (const empId of targetEmployeeIds) {
+        const assignments = days.map(day => ({
+          employee_id: empId,
+          date: format(day, 'yyyy-MM-dd'),
+          shift_type_id: shiftType.id,
+        }));
 
-      for (const a of assignments) {
-        await supabase.from('schedule_assignments').delete()
-          .eq('employee_id', a.employee_id)
-          .eq('date', a.date);
+        for (const a of assignments) {
+          await supabase.from('schedule_assignments').delete()
+            .eq('employee_id', a.employee_id)
+            .eq('date', a.date);
+        }
+
+        await supabase.from('schedule_assignments').insert(assignments);
       }
-
-      await supabase.from('schedule_assignments').insert(assignments);
     }
 
-    toast.success('Abwesenheit eingetragen und im Dienstplan übernommen');
+    const countLabel = manualType === 'company_holiday' ? ` für ${targetEmployeeIds.length} Mitarbeiter` : '';
+    toast.success(`Abwesenheit eingetragen${countLabel} und im Dienstplan übernommen`);
     setManualDialogOpen(false);
     setManualEmployeeId('');
     setManualRange(undefined);
@@ -293,19 +297,27 @@ export default function LeaveRequests() {
               </DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Mitarbeiter *</label>
-                    <Select value={manualEmployeeId} onValueChange={setManualEmployeeId}>
-                      <SelectTrigger><SelectValue placeholder="Wählen" /></SelectTrigger>
-                      <SelectContent>
-                        {allEmployees.map(emp => (
-                          <SelectItem key={emp.id} value={emp.id}>
-                            {emp.last_name}, {emp.first_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {manualType !== 'company_holiday' && (
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium">Mitarbeiter *</label>
+                      <Select value={manualEmployeeId} onValueChange={setManualEmployeeId}>
+                        <SelectTrigger><SelectValue placeholder="Wählen" /></SelectTrigger>
+                        <SelectContent>
+                          {allEmployees.map(emp => (
+                            <SelectItem key={emp.id} value={emp.id}>
+                              {emp.last_name}, {emp.first_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {manualType === 'company_holiday' && (
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium">Betrifft</label>
+                      <p className="text-sm text-muted-foreground pt-2">Alle {allEmployees.length} aktiven Mitarbeiter</p>
+                    </div>
+                  )}
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium">Typ *</label>
                     <Select value={manualType} onValueChange={(v) => setManualType(v as RequestType)}>
@@ -313,6 +325,7 @@ export default function LeaveRequests() {
                       <SelectContent>
                         <SelectItem value="vacation">Ferien</SelectItem>
                         <SelectItem value="day_off">Frei</SelectItem>
+                        <SelectItem value="company_holiday">Betriebsferien</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -432,7 +445,7 @@ export default function LeaveRequests() {
                       {req.employees?.first_name} {req.employees?.last_name}
                     </span>
                     <Badge variant="secondary" className="ml-2 text-xs">
-                      {req.request_type === 'vacation' ? 'Ferien' : 'Frei'}
+                      {req.request_type === 'vacation' ? 'Ferien' : req.request_type === 'company_holiday' ? 'Betriebsferien' : 'Frei'}
                     </Badge>
                   </div>
                   <span className="text-sm text-muted-foreground">
@@ -496,7 +509,7 @@ export default function LeaveRequests() {
                       )}
                       <p>
                         <Badge variant="secondary" className="text-xs mr-2">
-                          {req.request_type === 'vacation' ? 'Ferien' : 'Frei'}
+                          {req.request_type === 'vacation' ? 'Ferien' : req.request_type === 'company_holiday' ? 'Betriebsferien' : 'Frei'}
                         </Badge>
                         {format(new Date(req.start_date), 'dd.MM.yyyy')} – {format(new Date(req.end_date), 'dd.MM.yyyy')}
                         <span className="text-muted-foreground ml-2">({req.days_count} {req.days_count === 1 ? 'Tag' : 'Tage'})</span>

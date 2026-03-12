@@ -22,6 +22,7 @@ interface ShiftType {
   end_time: string | null;
   sort_order: number;
   cost_center: string;
+  break_minutes: number;
 }
 
 interface DayHours { open: string; close: string; }
@@ -45,7 +46,7 @@ export default function ShiftTypes() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<ShiftType>>({});
   const [showAdd, setShowAdd] = useState(false);
-  const [newShift, setNewShift] = useState({ name: '', short_code: '', color: '#3b82f6', start_time: '', end_time: '', cost_center: '' });
+  const [newShift, setNewShift] = useState({ name: '', short_code: '', color: '#3b82f6', start_time: '', end_time: '', cost_center: '', break_minutes: '0' });
   const [businessSettings, setBusinessSettings] = useState<any>(null);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
@@ -133,6 +134,7 @@ export default function ShiftTypes() {
       start_time: editForm.start_time || null,
       end_time: editForm.end_time || null,
       cost_center: editForm.cost_center || '',
+      break_minutes: editForm.break_minutes ?? 0,
     }).eq('id', editingId);
     if (error) { toast.error('Fehler beim Speichern'); return; }
     toast.success('Dienst aktualisiert');
@@ -160,10 +162,11 @@ export default function ShiftTypes() {
       end_time: newShift.end_time || null,
       sort_order: maxOrder + 1,
       cost_center: newShift.cost_center || '',
+      break_minutes: parseInt(newShift.break_minutes) || 0,
     });
     if (error) { toast.error('Fehler beim Erstellen'); return; }
     toast.success('Dienst erstellt');
-    setNewShift({ name: '', short_code: '', color: '#3b82f6', start_time: '', end_time: '', cost_center: '' });
+    setNewShift({ name: '', short_code: '', color: '#3b82f6', start_time: '', end_time: '', cost_center: '', break_minutes: '0' });
     setShowAdd(false);
     loadShifts();
   };
@@ -268,6 +271,11 @@ export default function ShiftTypes() {
                 <Input type="time" value={newShift.end_time} onChange={e => setNewShift(p => ({ ...p, end_time: e.target.value }))}
                   max={latestEnd || undefined} />
               </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Pause (Min.) <span className="text-muted-foreground">ArG Art. 15</span></Label>
+                <Input type="number" min="0" value={newShift.break_minutes} onChange={e => setNewShift(p => ({ ...p, break_minutes: e.target.value }))} placeholder="z.B. 30" />
+                <p className="text-[10px] text-muted-foreground">&gt;5.5h=15' · &gt;7h=30' · &gt;9h=60'</p>
+              </div>
             </div>
             {validateShiftTime(newShift.start_time || null, newShift.end_time || null) && (
               <div className="flex items-center gap-2 text-sm text-warning">
@@ -335,6 +343,11 @@ export default function ShiftTypes() {
                                 <Input type="time" value={editForm.end_time || ''} onChange={e => setEditForm(p => ({ ...p, end_time: e.target.value }))}
                                   max={latestEnd || undefined} />
                               </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs">Pause (Min.) <span className="text-muted-foreground">ArG Art. 15</span></Label>
+                                <Input type="number" min="0" value={String(editForm.break_minutes ?? 0)} onChange={e => setEditForm(p => ({ ...p, break_minutes: parseInt(e.target.value) || 0 }))} />
+                                <p className="text-[10px] text-muted-foreground">&gt;5.5h=15' · &gt;7h=30' · &gt;9h=60'</p>
+                              </div>
                             </div>
                             {validateShiftTime(editForm.start_time || null, editForm.end_time || null) && (
                               <div className="flex items-center gap-2 text-sm text-warning">
@@ -356,7 +369,10 @@ export default function ShiftTypes() {
                               <div>
                                 <p className="font-medium">{shift.name}</p>
                                 {shift.start_time && shift.end_time && (
-                                  <p className="text-xs text-muted-foreground">{shift.start_time.slice(0, 5)} – {shift.end_time.slice(0, 5)}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {shift.start_time.slice(0, 5)} – {shift.end_time.slice(0, 5)}
+                                    {shift.break_minutes > 0 && <span className="ml-1">· {shift.break_minutes}' Pause</span>}
+                                  </p>
                                 )}
                                 {warning && (
                                   <div className="flex items-center gap-1 text-xs text-warning mt-0.5">

@@ -1,0 +1,1 @@
+ALTER TABLE public.shift_types ADD COLUMN break_minutes integer DEFAULT 0;

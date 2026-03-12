@@ -40,6 +40,7 @@ interface ShiftInfo {
   start_time: string | null;
   end_time: string | null;
   color: string;
+  break_minutes: number;
 }
 
 export default function TimeControl() {
@@ -71,7 +72,7 @@ export default function TimeControl() {
         .order('employee_id'),
       supabase
         .from('schedule_assignments')
-        .select('employee_id, shift_types(name, short_code, start_time, end_time, color)')
+        .select('employee_id, shift_types(name, short_code, start_time, end_time, color, break_minutes)')
         .eq('date', selectedDate),
     ]);
 
@@ -87,6 +88,7 @@ export default function TimeControl() {
           start_time: a.shift_types.start_time ? a.shift_types.start_time.substring(0, 5) : null,
           end_time: a.shift_types.end_time ? a.shift_types.end_time.substring(0, 5) : null,
           color: a.shift_types.color,
+          break_minutes: a.shift_types.break_minutes || 0,
         };
       }
     });
@@ -127,7 +129,9 @@ export default function TimeControl() {
       setEditAdjClockOut('');
     }
 
-    setEditBreak(String(entry.break_minutes || 0));
+    // Auto-suggest break from shift type if entry has no break set
+    const shiftBreak = shift?.break_minutes || 0;
+    setEditBreak(String(entry.break_minutes ?? shiftBreak));
     setEditNotes(entry.notes || '');
   };
 
@@ -136,6 +140,7 @@ export default function TimeControl() {
     const shift = shifts[editEntry.employee_id];
     if (shift?.start_time) setEditAdjClockIn(shift.start_time);
     if (shift?.end_time) setEditAdjClockOut(shift.end_time);
+    if (shift?.break_minutes) setEditBreak(String(shift.break_minutes));
   };
 
   const saveEdit = async () => {
@@ -347,7 +352,7 @@ export default function TimeControl() {
                       </CardTitle>
                       {shift && (
                         <Badge style={{ backgroundColor: shift.color, color: '#fff' }} className="text-xs">
-                          {shift.short_code} {shift.start_time}–{shift.end_time}
+                          {shift.short_code} {shift.start_time}–{shift.end_time}{shift.break_minutes > 0 ? ` (${shift.break_minutes}' Pause)` : ''}
                         </Badge>
                       )}
                     </div>
@@ -429,7 +434,10 @@ export default function TimeControl() {
                     <CalendarClock className="h-4 w-4 text-primary" />
                     <div>
                       <p className="text-xs font-medium text-primary">Dienst: {editShift.name}</p>
-                      <p className="text-sm font-semibold">{editShift.start_time} – {editShift.end_time}</p>
+                      <p className="text-sm font-semibold">
+                        {editShift.start_time} – {editShift.end_time}
+                        {editShift.break_minutes > 0 && <span className="text-xs font-normal text-muted-foreground ml-1">· {editShift.break_minutes}' Pause</span>}
+                      </p>
                     </div>
                   </div>
                   <Button size="sm" variant="outline" onClick={applyShiftTimes}>
@@ -450,8 +458,9 @@ export default function TimeControl() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Pause (Min.)</Label>
+                <Label>Pause (Min.) <span className="text-xs font-normal text-muted-foreground">ArG Art. 15</span></Label>
                 <Input type="number" value={editBreak} onChange={e => setEditBreak(e.target.value)} min={0} />
+                <p className="text-[10px] text-muted-foreground">&gt;5.5h = 15' · &gt;7h = 30' · &gt;9h = 60' (gesetzl. Minimum)</p>
               </div>
               <div className="space-y-2">
                 <Label>Bemerkung</Label>
