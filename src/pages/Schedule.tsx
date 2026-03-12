@@ -511,11 +511,14 @@ export default function Schedule() {
             if (assignedToday.has(emp.id)) return false;
             const avail = empAvailability.get(emp.id) || [];
             if (!avail.includes(dayLabel)) return false;
-            // Match cost center: if shift has a cost center, only assign employees from that cost center
+            // Match cost center
             if (shiftCC && shiftCC !== '') {
               const empCC = empCostCenter.get(emp.id) || '';
               if (empCC !== shiftCC) return false;
             }
+            // Check allowed shift types: if employee has a selection, only assign matching shifts
+            const allowedShifts = empAllowedShifts.get(emp.id) || [];
+            if (allowedShifts.length > 0 && !allowedShifts.includes(shiftId)) return false;
             return true;
           });
 
