@@ -46,7 +46,7 @@ export default function ShiftTypes() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<ShiftType>>({});
   const [showAdd, setShowAdd] = useState(false);
-  const [newShift, setNewShift] = useState({ name: '', short_code: '', color: '#3b82f6', start_time: '', end_time: '', cost_center: '' });
+  const [newShift, setNewShift] = useState({ name: '', short_code: '', color: '#3b82f6', start_time: '', end_time: '', cost_center: '', break_minutes: '0' });
   const [businessSettings, setBusinessSettings] = useState<any>(null);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
