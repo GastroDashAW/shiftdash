@@ -381,6 +381,27 @@ export default function Schedule() {
   const formatTime = (t: string | null) => t ? t.slice(0, 5) : '';
 
   const [autoGenerating, setAutoGenerating] = useState(false);
+  const [undoSnapshot, setUndoSnapshot] = useState<{ assignments: { employee_id: string; date: string; shift_type_id: string }[]; startDate: string; endDate: string } | null>(null);
+
+  const handleUndoGenerate = async () => {
+    if (!undoSnapshot) return;
+    try {
+      await supabase.from('schedule_assignments').delete()
+        .gte('date', undoSnapshot.startDate)
+        .lte('date', undoSnapshot.endDate);
+      if (undoSnapshot.assignments.length > 0) {
+        for (let i = 0; i < undoSnapshot.assignments.length; i += 500) {
+          const chunk = undoSnapshot.assignments.slice(i, i + 500);
+          await supabase.from('schedule_assignments').insert(chunk);
+        }
+      }
+      toast.success('Dienstplan zurückgestellt');
+      setUndoSnapshot(null);
+      loadData();
+    } catch (err: any) {
+      toast.error('Fehler beim Zurückstellen: ' + err.message);
+    }
+  };
 
   const handleAutoGenerate = async (genStartDate: Date, genEndDate: Date) => {
     if (!isAdmin) return;
