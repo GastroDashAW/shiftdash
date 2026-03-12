@@ -46,7 +46,7 @@ export default function Settings() {
             <div>
               <p className="text-sm font-medium">Alle Daten zurücksetzen</p>
               <p className="text-xs text-muted-foreground">
-                Löscht Mitarbeiter, Dienste, Schichtpläne, Zeiteinträge und alle weiteren Daten. Das Schema bleibt erhalten.
+                Löscht Mitarbeiter, Schichtpläne, Zeiteinträge und alle weiteren Daten. Diensttypen (Schichten) bleiben erhalten.
               </p>
             </div>
             <Dialog open={open} onOpenChange={setOpen}>
