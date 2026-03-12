@@ -120,6 +120,7 @@ export default function Employees() {
       position: form.position.trim(),
       pensum_percent: parseFloat(form.pensum_percent) || 100,
       available_days: form.available_days,
+      allowed_shift_types: form.allowed_shift_types,
     };
 
     let savedId = editingId;
