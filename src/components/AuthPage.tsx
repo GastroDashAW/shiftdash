@@ -68,6 +68,7 @@ export function AuthPage() {
           </form>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
