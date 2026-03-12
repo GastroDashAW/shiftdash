@@ -140,29 +140,30 @@ export default function LeaveRequests() {
   };
 
   const handleManualSubmit = async () => {
-    if (!manualEmployeeId) { toast.error('Bitte Mitarbeiter wählen'); return; }
+    if (manualType !== 'company_holiday' && !manualEmployeeId) { toast.error('Bitte Mitarbeiter wählen'); return; }
     if (!manualRange?.from || !manualRange?.to) { toast.error('Bitte Zeitraum wählen'); return; }
 
     setManualSubmitting(true);
     const userId = (await supabase.auth.getUser()).data.user?.id;
 
-    // Insert as already approved
-    const { error } = await supabase.from('leave_requests').insert({
-      employee_id: manualEmployeeId,
-      request_type: manualType,
-      start_date: format(manualRange.from, 'yyyy-MM-dd'),
-      end_date: format(manualRange.to, 'yyyy-MM-dd'),
-      days_count: manualDaysCount,
-      status: 'approved',
-      admin_note: manualNote.trim() || null,
-      reviewed_by: userId,
-      reviewed_at: new Date().toISOString(),
-    });
+    // For company holidays: apply to ALL active employees
+    const targetEmployeeIds = manualType === 'company_holiday'
+      ? allEmployees.map(e => e.id)
+      : [manualEmployeeId];
 
-    if (error) {
-      toast.error('Fehler: ' + error.message);
-      setManualSubmitting(false);
-      return;
+    // Insert leave requests for all targets
+    for (const empId of targetEmployeeIds) {
+      await supabase.from('leave_requests').insert({
+        employee_id: empId,
+        request_type: manualType,
+        start_date: format(manualRange.from!, 'yyyy-MM-dd'),
+        end_date: format(manualRange.to!, 'yyyy-MM-dd'),
+        days_count: manualDaysCount,
+        status: 'approved',
+        admin_note: manualNote.trim() || (manualType === 'company_holiday' ? 'Betriebsferien' : null),
+        reviewed_by: userId,
+        reviewed_at: new Date().toISOString(),
+      });
     }
 
     // Create schedule assignments
@@ -175,22 +176,31 @@ export default function LeaveRequests() {
 
     if (shiftType) {
       const days = eachDayOfInterval({ start: manualRange.from, end: manualRange.to });
-      const assignments = days.map(day => ({
-        employee_id: manualEmployeeId,
-        date: format(day, 'yyyy-MM-dd'),
-        shift_type_id: shiftType.id,
-      }));
+      for (const empId of targetEmployeeIds) {
+        const assignments = days.map(day => ({
+          employee_id: empId,
+          date: format(day, 'yyyy-MM-dd'),
+          shift_type_id: shiftType.id,
+        }));
 
-      for (const a of assignments) {
-        await supabase.from('schedule_assignments').delete()
-          .eq('employee_id', a.employee_id)
-          .eq('date', a.date);
+        for (const a of assignments) {
+          await supabase.from('schedule_assignments').delete()
+            .eq('employee_id', a.employee_id)
+            .eq('date', a.date);
+        }
+
+        await supabase.from('schedule_assignments').insert(assignments);
       }
-
-      await supabase.from('schedule_assignments').insert(assignments);
     }
 
-    toast.success('Abwesenheit eingetragen und im Dienstplan übernommen');
+    const countLabel = manualType === 'company_holiday' ? ` für ${targetEmployeeIds.length} Mitarbeiter` : '';
+    toast.success(`Abwesenheit eingetragen${countLabel} und im Dienstplan übernommen`);
+    setManualDialogOpen(false);
+    setManualEmployeeId('');
+    setManualRange(undefined);
+    setManualNote('');
+    setManualSubmitting(false);
+  };
     setManualDialogOpen(false);
     setManualEmployeeId('');
     setManualRange(undefined);
