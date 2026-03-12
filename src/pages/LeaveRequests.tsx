@@ -201,12 +201,6 @@ export default function LeaveRequests() {
     setManualNote('');
     setManualSubmitting(false);
   };
-    setManualDialogOpen(false);
-    setManualEmployeeId('');
-    setManualRange(undefined);
-    setManualNote('');
-    setManualSubmitting(false);
-  };
 
   const handleDecision = async (requestId: string, decision: 'approved' | 'rejected') => {
     const note = adminNote.trim();
