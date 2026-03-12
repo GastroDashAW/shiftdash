@@ -313,6 +313,7 @@ export default function LeaveRequests() {
                       <SelectContent>
                         <SelectItem value="vacation">Ferien</SelectItem>
                         <SelectItem value="day_off">Frei</SelectItem>
+                        <SelectItem value="company_holiday">Betriebsferien</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
