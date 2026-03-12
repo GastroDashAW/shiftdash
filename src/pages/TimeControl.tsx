@@ -140,6 +140,7 @@ export default function TimeControl() {
     const shift = shifts[editEntry.employee_id];
     if (shift?.start_time) setEditAdjClockIn(shift.start_time);
     if (shift?.end_time) setEditAdjClockOut(shift.end_time);
+    if (shift?.break_minutes) setEditBreak(String(shift.break_minutes));
   };
 
   const saveEdit = async () => {
