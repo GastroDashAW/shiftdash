@@ -352,7 +352,7 @@ export default function TimeControl() {
                       </CardTitle>
                       {shift && (
                         <Badge style={{ backgroundColor: shift.color, color: '#fff' }} className="text-xs">
-                          {shift.short_code} {shift.start_time}–{shift.end_time}
+                          {shift.short_code} {shift.start_time}–{shift.end_time}{shift.break_minutes > 0 ? ` (${shift.break_minutes}' Pause)` : ''}
                         </Badge>
                       )}
                     </div>
