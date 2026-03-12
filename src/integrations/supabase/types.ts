@@ -429,6 +429,36 @@ export type Database = {
         }
         Relationships: []
       }
+      schedule_archives: {
+        Row: {
+          assignments: Json
+          created_at: string
+          created_by: string | null
+          end_date: string
+          id: string
+          name: string
+          start_date: string
+        }
+        Insert: {
+          assignments?: Json
+          created_at?: string
+          created_by?: string | null
+          end_date: string
+          id?: string
+          name: string
+          start_date: string
+        }
+        Update: {
+          assignments?: Json
+          created_at?: string
+          created_by?: string | null
+          end_date?: string
+          id?: string
+          name?: string
+          start_date?: string
+        }
+        Relationships: []
+      }
       schedule_assignments: {
         Row: {
           created_at: string
