@@ -482,7 +482,7 @@ export default function Schedule() {
         shiftCostCenter.set(st.id, st.cost_center || '');
       }
 
-      // 7. Save snapshot for undo, then delete existing assignments
+      // 7. Save snapshot for undo, then handle existing assignments
       const { data: existingAssignments } = await supabase
         .from('schedule_assignments')
         .select('employee_id, date, shift_type_id')
@@ -494,6 +494,21 @@ export default function Schedule() {
         endDate: endDateStr,
       });
 
+      // Build set of manually assigned employee-date combos to preserve
+      // Manual = any existing assignment that is NOT a "Frei" (F) auto-fill
+      const manualAssignments = new Set<string>();
+      const manualAssignmentRows: { employee_id: string; date: string; shift_type_id: string }[] = [];
+      for (const a of existingAssignments || []) {
+        const key = `${a.employee_id}-${a.date}`;
+        // Preserve all existing non-Frei assignments as manual
+        const isFreiShift = freiShift && a.shift_type_id === freiShift.id;
+        if (!isFreiShift) {
+          manualAssignments.add(key);
+          manualAssignmentRows.push({ employee_id: a.employee_id, date: a.date, shift_type_id: a.shift_type_id });
+        }
+      }
+
+      // Delete only non-manual assignments (Frei entries and unassigned slots)
       await supabase
         .from('schedule_assignments')
         .delete()
@@ -502,8 +517,15 @@ export default function Schedule() {
 
       // 8. Generate assignments day by day
       const newAssignments: { employee_id: string; date: string; shift_type_id: string }[] = [];
+      // Re-insert all manual assignments first
+      newAssignments.push(...manualAssignmentRows);
+
       const employeeShiftCount: Record<string, number> = {};
       for (const emp of employees) employeeShiftCount[emp.id] = 0;
+      // Count manual assignments toward shift counts
+      for (const a of manualAssignmentRows) {
+        employeeShiftCount[a.employee_id] = (employeeShiftCount[a.employee_id] || 0) + 1;
+      }
 
       const workShiftIds = Object.keys(configMap);
 
@@ -513,20 +535,27 @@ export default function Schedule() {
         const dayLabel = dayLabels[dow];
         const leaveKeyPrefix = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 
-        // Closed day: assign Frei to everyone
+        // Collect employees already manually assigned for this day
+        const assignedToday = new Set<string>();
+        for (const a of manualAssignmentRows) {
+          if (a.date === dateStr) assignedToday.add(a.employee_id);
+        }
+
+        // Closed day: assign Frei to everyone not manually assigned
         if (closedDays.includes(dow)) {
           if (freiShift) {
             for (const emp of employees) {
-              newAssignments.push({ employee_id: emp.id, date: dateStr, shift_type_id: freiShift.id });
+              if (!assignedToday.has(emp.id)) {
+                newAssignments.push({ employee_id: emp.id, date: dateStr, shift_type_id: freiShift.id });
+              }
             }
           }
           continue;
         }
 
-        const assignedToday = new Set<string>();
-
-        // First: assign leave (Ferien) for employees on approved leave
+        // First: assign leave (Ferien) for employees on approved leave (skip if manually assigned)
         for (const emp of employees) {
+          if (assignedToday.has(emp.id)) continue;
           const leaveKey = `${emp.id}-${leaveKeyPrefix}`;
           if (onLeave.has(leaveKey) && ferienShift) {
             newAssignments.push({ employee_id: emp.id, date: dateStr, shift_type_id: ferienShift.id });
