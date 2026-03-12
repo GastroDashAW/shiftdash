@@ -22,6 +22,7 @@ interface ShiftType {
   end_time: string | null;
   sort_order: number;
   cost_center: string;
+  break_minutes: number;
 }
 
 interface DayHours { open: string; close: string; }
