@@ -481,7 +481,18 @@ export default function Schedule() {
         shiftCostCenter.set(st.id, st.cost_center || '');
       }
 
-      // 7. Delete existing assignments for the date range (fresh generation)
+      // 7. Save snapshot for undo, then delete existing assignments
+      const { data: existingAssignments } = await supabase
+        .from('schedule_assignments')
+        .select('employee_id, date, shift_type_id')
+        .gte('date', startDateStr)
+        .lte('date', endDateStr);
+      setUndoSnapshot({
+        assignments: (existingAssignments || []).map(a => ({ employee_id: a.employee_id, date: a.date, shift_type_id: a.shift_type_id })),
+        startDate: startDateStr,
+        endDate: endDateStr,
+      });
+
       await supabase
         .from('schedule_assignments')
         .delete()
