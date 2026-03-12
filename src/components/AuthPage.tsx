@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import shiftDashLogo from '@/assets/shiftdash-logo.png';
+import { BRANDING } from '@/config/branding';
+import { StagingBanner } from '@/components/StagingBanner';
 
 export function AuthPage() {
   const [email, setEmail] = useState('');
