@@ -520,7 +520,13 @@ export default function Schedule() {
             return true;
           });
 
-          eligible.sort((a, b) => (employeeShiftCount[a.id] || 0) - (employeeShiftCount[b.id] || 0));
+          // Sort: Priority 1 = fixed employees, Priority 2 = hourly; within each group sort by least shifts
+          eligible.sort((a, b) => {
+            const aFixed = empType.get(a.id) === 'fixed' ? 0 : 1;
+            const bFixed = empType.get(b.id) === 'fixed' ? 0 : 1;
+            if (aFixed !== bFixed) return aFixed - bFixed;
+            return (employeeShiftCount[a.id] || 0) - (employeeShiftCount[b.id] || 0);
+          });
 
           const toAssign = Math.min(required, eligible.length);
           for (let i = 0; i < toAssign; i++) {
