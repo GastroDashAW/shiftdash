@@ -40,6 +40,7 @@ interface ShiftInfo {
   start_time: string | null;
   end_time: string | null;
   color: string;
+  break_minutes: number;
 }
 
 export default function TimeControl() {
