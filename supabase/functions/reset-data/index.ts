@@ -50,7 +50,6 @@ Deno.serve(async (req) => {
       "daily_revenues",
       "leave_requests",
       "shift_plan_config",
-      "shift_types",
       "form_templates",
       "employees",
     ];
