@@ -690,18 +690,20 @@ export default function Schedule() {
         </CardContent>
       </Card>
 
-      {/* Auto-generate button – admin only */}
+      {/* Auto-generate + Archive – admin only */}
       {isAdmin && (
-        <div className="print:hidden">
-          <Button
-            size="lg"
-            onClick={handleAutoGenerate}
-            disabled={autoGenerating}
-            className="w-full gap-3 text-base font-semibold py-6"
-          >
-            <Wand2 className="h-5 w-5" />
-            {autoGenerating ? 'Dienstplan wird erstellt...' : 'Automatisch erstellen'}
-          </Button>
+        <div className="print:hidden space-y-3">
+          <ScheduleGenerateDialog
+            onGenerate={handleAutoGenerate}
+            generating={autoGenerating}
+            defaultMonth={new Date(year, month, 1)}
+          />
+          <ScheduleArchivePanel
+            currentAssignments={assignments.map(a => ({ employee_id: a.employee_id, date: a.date, shift_type_id: a.shift_type_id }))}
+            currentStartDate={`${year}-${String(month + 1).padStart(2, '0')}-01`}
+            currentEndDate={`${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`}
+            onLoadArchive={() => loadData()}
+          />
         </div>
       )}
 
