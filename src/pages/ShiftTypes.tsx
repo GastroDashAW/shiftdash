@@ -369,7 +369,10 @@ export default function ShiftTypes() {
                               <div>
                                 <p className="font-medium">{shift.name}</p>
                                 {shift.start_time && shift.end_time && (
-                                  <p className="text-xs text-muted-foreground">{shift.start_time.slice(0, 5)} – {shift.end_time.slice(0, 5)}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {shift.start_time.slice(0, 5)} – {shift.end_time.slice(0, 5)}
+                                    {shift.break_minutes > 0 && <span className="ml-1">· {shift.break_minutes}' Pause</span>}
+                                  </p>
                                 )}
                                 {warning && (
                                   <div className="flex items-center gap-1 text-xs text-warning mt-0.5">
