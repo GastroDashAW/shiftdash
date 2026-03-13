@@ -881,6 +881,12 @@ export default function Schedule() {
                                   className={`group relative mx-auto flex h-7 w-8 items-center justify-center rounded text-[10px] font-bold text-white print:h-5 print:w-6 print:text-[8px] ${isAdmin ? 'cursor-grab active:cursor-grabbing' : ''} ${hasViolation ? 'ring-2 ring-destructive ring-offset-1' : ''}`}
                                   style={{ backgroundColor: shift.color }}
                                   title={`${shift.name}${shift.start_time ? ` (${formatTime(shift.start_time)}–${formatTime(shift.end_time)})` : ''}${hasViolation ? ' ⚠️ L-GAV Verstoss' : ''}`}
+                                  onClick={() => {
+                                    if (shift.start_time && shift.end_time) {
+                                      setMobileTooltip({ empId: emp.id, day });
+                                      setTimeout(() => setMobileTooltip(null), 3000);
+                                    }
+                                  }}
                                 >
                                   {shift.short_code}
                                   {isAdmin && (
@@ -891,6 +897,20 @@ export default function Schedule() {
                                       ×
                                     </div>
                                   )}
+                                  <AnimatePresence>
+                                    {mobileTooltip?.empId === emp.id && mobileTooltip?.day === day && (
+                                      <motion.div
+                                        initial={{ opacity: 0, y: 4, scale: 0.95 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                                        transition={{ duration: 0.15 }}
+                                        className="absolute -top-10 left-1/2 -translate-x-1/2 z-50 whitespace-nowrap rounded bg-foreground px-2 py-1 text-[10px] font-medium text-background shadow-lg print:hidden pointer-events-none"
+                                      >
+                                        {shift.name} {formatTime(shift.start_time)}–{formatTime(shift.end_time)}
+                                        <div className="absolute left-1/2 -translate-x-1/2 top-full h-0 w-0 border-x-4 border-t-4 border-x-transparent border-t-foreground" />
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
                                 </div>
                               ) : (
                                 isAdmin ? (
