@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
-import { Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut, ClipboardCheck, LayoutDashboard, DollarSign, Building2, CalendarPlus, Clock, Settings } from 'lucide-react';
+import { Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut, ClipboardCheck, LayoutDashboard, DollarSign, Building2, CalendarPlus, Clock, Settings, ShieldCheck } from 'lucide-react';
 import shiftDashLogo from '@/assets/shiftdash-logo.png';
 import { useState } from 'react';
 import { BRANDING } from '@/config/branding';
@@ -18,6 +18,7 @@ export function Layout({ children }: { children: ReactNode }) {
     { to: '/schedule', label: 'Dienstplan', icon: CalendarDays, adminOnly: false },
     { to: '/leave', label: 'Abwesenheit', icon: CalendarPlus, adminOnly: false },
     { to: '/employees', label: 'Mitarbeiter', icon: Users, adminOnly: true },
+    { to: '/groups', label: 'Gruppen & GAV', icon: ShieldCheck, adminOnly: true },
     { to: '/shifts', label: 'Dienste', icon: Layers, adminOnly: true },
     { to: '/time-control', label: 'Tageskontrolle', icon: ClipboardCheck, adminOnly: true },
     { to: '/validation', label: 'Validierung', icon: CalendarCheck, adminOnly: true },

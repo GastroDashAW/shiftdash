@@ -16,6 +16,7 @@ import ExportPage from "./pages/Export";
 import TimeControl from "./pages/TimeControl";
 import Budget from "./pages/Budget";
 import Business from "./pages/Business";
+import Groups from "./pages/Groups";
 import LeaveRequests from "./pages/LeaveRequests";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -53,6 +54,7 @@ function AppContent() {
               <Route path="/export" element={<ProtectedRoute adminOnly><ExportPage /></ProtectedRoute>} />
               <Route path="/budget" element={<ProtectedRoute adminOnly><Budget /></ProtectedRoute>} />
               <Route path="/business" element={<ProtectedRoute adminOnly><Business /></ProtectedRoute>} />
+              <Route path="/groups" element={<ProtectedRoute adminOnly><Groups /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>

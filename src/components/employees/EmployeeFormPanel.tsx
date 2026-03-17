@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { KeyRound } from 'lucide-react';
+import { KeyRound, ShieldCheck } from 'lucide-react';
 import { EmployeeForm, calcHourlyRate, ALL_WEEKDAYS } from '@/pages/Employees';
 
 type EmployeeType = 'fixed' | 'hourly';
@@ -17,6 +17,12 @@ interface ShiftType {
   short_code: string;
   color: string;
   cost_center: string;
+}
+
+interface EmployeeGroup {
+  id: string;
+  name: string;
+  color: string;
 }
 
 interface EmployeeFormPanelProps {
@@ -34,6 +40,7 @@ export function EmployeeFormPanel({ form, setForm, editingId, employees, creatin
 
   const [openDays, setOpenDays] = useState<string[]>([...ALL_WEEKDAYS]);
   const [shiftTypes, setShiftTypes] = useState<ShiftType[]>([]);
+  const [groups, setGroups] = useState<EmployeeGroup[]>([]);
 
   useEffect(() => {
     supabase.from('business_settings').select('opening_days').limit(1).single().then(({ data }) => {
@@ -44,6 +51,9 @@ export function EmployeeFormPanel({ form, setForm, editingId, employees, creatin
     });
     supabase.from('shift_types').select('id, name, short_code, color, cost_center').order('sort_order').then(({ data }) => {
       if (data) setShiftTypes(data);
+    });
+    supabase.from('employee_groups').select('id, name, color').order('name').then(({ data }) => {
+      if (data) setGroups(data as EmployeeGroup[]);
     });
   }, []);
 
@@ -91,6 +101,36 @@ export function EmployeeFormPanel({ form, setForm, editingId, employees, creatin
           <Label className="text-xs">Nachname *</Label>
           <Input value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} />
         </div>
+      </div>
+
+      {/* Mitarbeitergruppe */}
+      <div className="space-y-1.5">
+        <Label className="text-xs flex items-center gap-1.5">
+          <ShieldCheck className="h-3 w-3 text-primary" />
+          Mitarbeitergruppe (GAV)
+        </Label>
+        <Select
+          value={form.group_id || 'none'}
+          onValueChange={v => setForm(f => ({ ...f, group_id: v === 'none' ? '' : v }))}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Gruppe wählen (optional)" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Keine Gruppe</SelectItem>
+            {groups.map(g => (
+              <SelectItem key={g.id} value={g.id}>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: g.color }} />
+                  {g.name}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {groups.length === 0 && (
+          <p className="text-[10px] text-muted-foreground">Zuerst Gruppen unter «Gruppen & GAV» anlegen</p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
