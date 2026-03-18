@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, Printer, Filter, Undo2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, Printer, Filter, Undo2, GripVertical } from 'lucide-react';
 import { validateSchedule, LgavViolation } from '@/lib/lgav-schedule-validation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
@@ -85,6 +85,10 @@ export default function Schedule() {
   // Admin: set of visible cost centers; Employee: view mode
   const [hiddenCostCenters, setHiddenCostCenters] = useState<Set<string>>(new Set());
   const [employeeViewMode, setEmployeeViewMode] = useState<'all' | 'my_cc' | 'my_shifts'>('all');
+
+  // Employee row reorder state (admin only)
+  const [customEmployeeOrder, setCustomEmployeeOrder] = useState<string[] | null>(null);
+  const [dragRowId, setDragRowId] = useState<string | null>(null);
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
@@ -314,16 +318,25 @@ export default function Schedule() {
     let currentGroup: Employee[] = [];
 
     // Filter employees based on role and view mode
-    let filteredEmployees = employees;
+    let filteredEmployees = [...employees];
     if (isAdmin) {
-      filteredEmployees = employees.filter(emp => !hiddenCostCenters.has(emp.cost_center || ''));
+      filteredEmployees = filteredEmployees.filter(emp => !hiddenCostCenters.has(emp.cost_center || ''));
+      // Apply custom order if set
+      if (customEmployeeOrder) {
+        const orderMap = new Map(customEmployeeOrder.map((id, i) => [id, i]));
+        filteredEmployees.sort((a, b) => {
+          const aIdx = orderMap.get(a.id) ?? 9999;
+          const bIdx = orderMap.get(b.id) ?? 9999;
+          return aIdx - bIdx;
+        });
+        // When custom order is active, don't group by cost center
+        return [{ costCenter: '', employees: filteredEmployees }];
+      }
     } else {
       if (employeeViewMode === 'my_cc' && myEmployee) {
-        filteredEmployees = employees.filter(emp => emp.cost_center === myEmployee.cost_center);
+        filteredEmployees = filteredEmployees.filter(emp => emp.cost_center === myEmployee.cost_center);
       } else if (employeeViewMode === 'my_shifts' && employeeId) {
-        const myAssignedDates = new Set(assignments.filter(a => a.employee_id === employeeId).map(a => a.date));
-        // Show only own employee if they have assignments, otherwise show empty
-        filteredEmployees = employees.filter(emp => emp.id === employeeId);
+        filteredEmployees = filteredEmployees.filter(emp => emp.id === employeeId);
       }
     }
 
@@ -338,7 +351,34 @@ export default function Schedule() {
     }
     if (currentGroup.length > 0) groups.push({ costCenter: current, employees: currentGroup });
     return groups;
-  }, [employees, isAdmin, hiddenCostCenters, employeeViewMode, myEmployee, employeeId, assignments]);
+  }, [employees, isAdmin, hiddenCostCenters, employeeViewMode, myEmployee, employeeId, assignments, customEmployeeOrder]);
+
+  // Employee row drag-and-drop reorder handlers
+  const handleRowDragStart = (e: DragEvent, empId: string) => {
+    e.dataTransfer.setData('text/row-reorder', empId);
+    e.dataTransfer.effectAllowed = 'move';
+    setDragRowId(empId);
+  };
+
+  const handleRowDragOver = (e: DragEvent) => {
+    if (!e.dataTransfer.types.includes('text/row-reorder')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleRowDrop = (e: DragEvent, targetEmpId: string) => {
+    const sourceId = e.dataTransfer.getData('text/row-reorder');
+    if (!sourceId || sourceId === targetEmpId) { setDragRowId(null); return; }
+    e.preventDefault();
+    const currentOrder = customEmployeeOrder || costCenterGroups.flatMap(g => g.employees.map(emp => emp.id));
+    const newOrder = currentOrder.filter(id => id !== sourceId);
+    const targetIdx = newOrder.indexOf(targetEmpId);
+    newOrder.splice(targetIdx, 0, sourceId);
+    setCustomEmployeeOrder(newOrder);
+    setDragRowId(null);
+  };
+
+  const resetEmployeeOrder = () => setCustomEmployeeOrder(null);
 
   const toggleCostCenter = (cc: string) => {
     setHiddenCostCenters(prev => {
@@ -745,6 +785,11 @@ export default function Schedule() {
                   <span>{cc || 'Ohne Kostenstelle'}</span>
                 </label>
               ))}
+              {customEmployeeOrder && (
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={resetEmployeeOrder}>
+                  <Undo2 className="h-3 w-3 mr-1" /> Reihenfolge zurücksetzen
+                </Button>
+              )}
             </div>
           ) : (
             <Select value={employeeViewMode} onValueChange={(v) => setEmployeeViewMode(v as 'all' | 'my_cc' | 'my_shifts')}>
@@ -852,16 +897,37 @@ export default function Schedule() {
               <tbody>
                 {costCenterGroups.map(group => (
                   <>
-                    <tr key={`cc-${group.costCenter}`} className="bg-muted/40">
-                      <td colSpan={daysInMonth + 1} className="sticky left-0 px-3 py-1 text-[10px] font-heading font-semibold uppercase tracking-wider text-muted-foreground print:static print:px-1 print:text-[8px]">
-                        {group.costCenter || 'Ohne Kostenstelle'}
-                      </td>
-                    </tr>
+                    {group.costCenter && !customEmployeeOrder && (
+                      <tr key={`cc-${group.costCenter}`} className="bg-muted/40">
+                        <td colSpan={daysInMonth + 1} className="sticky left-0 px-3 py-1 text-[10px] font-heading font-semibold uppercase tracking-wider text-muted-foreground print:static print:px-1 print:text-[8px]">
+                          {group.costCenter || 'Ohne Kostenstelle'}
+                        </td>
+                      </tr>
+                    )}
                     {group.employees.map(emp => (
-                      <tr key={emp.id} className="border-b last:border-0 hover:bg-muted/30 print:hover:bg-transparent">
+                      <tr
+                        key={emp.id}
+                        className={`border-b last:border-0 hover:bg-muted/30 print:hover:bg-transparent transition-colors ${dragRowId === emp.id ? 'opacity-40' : ''}`}
+                        onDragOver={isAdmin ? handleRowDragOver : undefined}
+                        onDrop={isAdmin ? (e) => handleRowDrop(e, emp.id) : undefined}
+                      >
                         <td className="sticky left-0 z-10 bg-card px-3 py-2 whitespace-nowrap print:static print:px-1 print:py-1">
-                          <div className="font-medium text-xs print:text-[9px]">{emp.first_name} {emp.last_name}</div>
-                          <div className="text-[10px] text-muted-foreground print:text-[8px]">{emp.position}</div>
+                          <div className="flex items-center gap-1.5">
+                            {isAdmin && (
+                              <div
+                                draggable
+                                onDragStart={(e) => handleRowDragStart(e as unknown as DragEvent, emp.id)}
+                                onDragEnd={() => setDragRowId(null)}
+                                className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground print:hidden shrink-0"
+                              >
+                                <GripVertical className="h-3.5 w-3.5" />
+                              </div>
+                            )}
+                            <div>
+                              <div className="font-medium text-xs print:text-[9px]">{emp.first_name} {emp.last_name}</div>
+                              <div className="text-[10px] text-muted-foreground print:text-[8px]">{emp.position}</div>
+                            </div>
+                          </div>
                         </td>
                         {days.map(day => {
                           const assignment = getAssignment(emp.id, day);
