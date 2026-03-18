@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import shiftDashLogo from '@/assets/shiftdash-logo.png';
 import { BRANDING } from '@/config/branding';
 import { StagingBanner } from '@/components/StagingBanner';
+import { DashWelcome } from '@/components/dash/DashWelcome';
 
 export function AuthPage() {
   const [email, setEmail] = useState('');
