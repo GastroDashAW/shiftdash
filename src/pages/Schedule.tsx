@@ -86,6 +86,10 @@ export default function Schedule() {
   const [hiddenCostCenters, setHiddenCostCenters] = useState<Set<string>>(new Set());
   const [employeeViewMode, setEmployeeViewMode] = useState<'all' | 'my_cc' | 'my_shifts'>('all');
 
+  // Employee row reorder state (admin only)
+  const [customEmployeeOrder, setCustomEmployeeOrder] = useState<string[] | null>(null);
+  const [dragRowId, setDragRowId] = useState<string | null>(null);
+
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
