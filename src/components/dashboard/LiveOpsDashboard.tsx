@@ -243,12 +243,12 @@ export function LiveOpsDashboard() {
         notes: [existing.notes, noteText].filter(Boolean).join(' | '),
       }).eq('id', existing.id);
     } else {
-      await supabase.from('time_entries').insert({
+      await supabase.from('time_entries').insert([{
         employee_id: noteDialog.empId,
         date: today(),
         effective_hours: 0,
         notes: noteText,
-      });
+      }]);
     }
     toast.success('Notiz hinzugefügt');
     setNoteDialog(null);
