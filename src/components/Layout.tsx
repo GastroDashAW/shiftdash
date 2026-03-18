@@ -17,7 +17,7 @@ export function Layout({ children }: { children: ReactNode }) {
   // Auto-open groups that contain the active route
   const getInitialOpen = () => {
     const openSet = new Set<string>();
-    navGroupsDef.forEach(g => {
+    navGroups.forEach(g => {
       if (g.label && g.items.some(i => location.pathname === i.to)) {
         openSet.add(g.label);
       }
