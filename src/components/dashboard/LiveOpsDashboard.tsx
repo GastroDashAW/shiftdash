@@ -376,64 +376,80 @@ export function LiveOpsDashboard() {
             transition={{ delay: 0.15 + gi * 0.05 }}
           >
             <Card>
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="h-4 w-4 rounded-full"
-                    style={{ backgroundColor: group.shiftType.color }}
-                  />
-                  <CardTitle className="text-base">
-                    {group.shiftType.name}
-                    {group.shiftType.start_time && group.shiftType.end_time && (
-                      <span className="ml-2 font-normal text-muted-foreground">
-                        · {group.shiftType.start_time.substring(0, 5)}–{group.shiftType.end_time.substring(0, 5)}
-                      </span>
-                    )}
-                  </CardTitle>
-                  <Badge variant="secondary" className="ml-auto">{group.employees.length}</Badge>
+              <button
+                className="flex w-full items-center gap-3 px-6 py-3 text-left"
+                onClick={() => toggleShift(group.shiftType.id)}
+              >
+                <div
+                  className="h-3 w-3 rounded-full shrink-0"
+                  style={{ backgroundColor: group.shiftType.color }}
+                />
+                <span className="text-sm font-semibold flex-1">
+                  {group.shiftType.name}
+                  {group.shiftType.start_time && group.shiftType.end_time && (
+                    <span className="ml-1.5 font-normal text-muted-foreground">
+                      · {group.shiftType.start_time.substring(0, 5)}–{group.shiftType.end_time.substring(0, 5)}
+                    </span>
+                  )}
+                </span>
+                {/* Mini status summary */}
+                <div className="flex items-center gap-1.5 text-xs">
+                  {group.employees.filter(e => e.status === 'clocked_in' || e.status === 'done').length > 0 && (
+                    <span className="text-[hsl(var(--success))]">🟢{group.employees.filter(e => e.status === 'clocked_in' || e.status === 'done').length}</span>
+                  )}
+                  {group.employees.filter(e => e.status === 'late' || e.status === 'no_show').length > 0 && (
+                    <span className="text-destructive">🔴{group.employees.filter(e => e.status === 'late' || e.status === 'no_show').length}</span>
+                  )}
+                  {group.employees.filter(e => e.status === 'upcoming').length > 0 && (
+                    <span className="text-[hsl(var(--warning))]">🟡{group.employees.filter(e => e.status === 'upcoming').length}</span>
+                  )}
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {group.employees.map((emp) => (
-                  <div
-                    key={emp.id}
-                    className={`flex items-center justify-between rounded-lg border p-3 transition-colors ${
-                      emp.isLate ? 'border-destructive bg-destructive/5' : ''
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {emp.isLate && <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" />}
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{emp.name}</p>
-                        {emp.position && (
-                          <p className="text-xs text-muted-foreground truncate">{emp.position}</p>
-                        )}
+                <Badge variant="secondary" className="shrink-0">{group.employees.length}</Badge>
+                <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${expandedShifts.has(group.shiftType.id) ? 'rotate-180' : ''}`} />
+              </button>
+              {expandedShifts.has(group.shiftType.id) && (
+                <CardContent className="space-y-1.5 pt-0 pb-3">
+                  {group.employees.map((emp) => (
+                    <div
+                      key={emp.id}
+                      className={`flex items-center justify-between rounded-lg border p-2.5 transition-colors ${
+                        emp.isLate ? 'border-destructive bg-destructive/5' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        {emp.isLate && <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-destructive" />}
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{emp.name}</p>
+                          {emp.position && (
+                            <p className="text-[11px] text-muted-foreground truncate">{emp.position}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {statusBadge(emp.status, emp.detail)}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setClockInDialog({ empId: emp.id, empName: emp.name })}>
+                              Manuell einstempeln
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setAbsenceDialog({ empId: emp.id, empName: emp.name })}>
+                              Absenz erfassen
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setNoteDialog({ empId: emp.id, empName: emp.name })}>
+                              Notiz hinzufügen
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {statusBadge(emp.status, emp.detail)}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setClockInDialog({ empId: emp.id, empName: emp.name })}>
-                            Manuell einstempeln
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setAbsenceDialog({ empId: emp.id, empName: emp.name })}>
-                            Absenz erfassen
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setNoteDialog({ empId: emp.id, empName: emp.name })}>
-                            Notiz hinzufügen
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
+                  ))}
+                </CardContent>
+              )}
             </Card>
           </motion.div>
         ))
