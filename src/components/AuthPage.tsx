@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import shiftDashLogo from '@/assets/shiftdash-logo.png';
 import { BRANDING } from '@/config/branding';
 import { StagingBanner } from '@/components/StagingBanner';
+import { DashWelcome } from '@/components/dash/DashWelcome';
 
 export function AuthPage() {
   const [email, setEmail] = useState('');
@@ -26,7 +27,10 @@ export function AuthPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <StagingBanner />
-      <div className="flex flex-1 items-center justify-center p-4">
+      <div className="flex flex-1 items-center justify-center gap-6 p-4 flex-col lg:flex-row">
+      <div className="hidden lg:block">
+        <DashWelcome />
+      </div>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-4">
           <img src={shiftDashLogo} alt={`${BRANDING.appName} Logo`} className="mx-auto h-20 w-20 object-contain" />
@@ -68,6 +72,9 @@ export function AuthPage() {
           </form>
         </CardContent>
       </Card>
+      <div className="lg:hidden">
+        <DashWelcome />
+      </div>
       </div>
     </div>
   );
