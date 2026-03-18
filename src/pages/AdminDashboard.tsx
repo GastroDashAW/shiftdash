@@ -2,27 +2,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { motion } from 'framer-motion';
+import { LiveOpsDashboard } from '@/components/dashboard/LiveOpsDashboard';
 
 import tileStempeln from '@/assets/tile-stempeln.png';
 import tileDienstplan from '@/assets/tile-dienstplan.png';
-import tileMitarbeiter from '@/assets/tile-mitarbeiter.png';
-import tileDienste from '@/assets/tile-dienste.png';
-import tileBudget from '@/assets/tile-budget.png';
-import tileBetrieb from '@/assets/tile-betrieb.png';
 import tileValidierung from '@/assets/tile-validierung.png';
-import tileExport from '@/assets/tile-export.png';
-
-const adminTiles = [
-  { label: 'Stempeln', to: '/clock', image: tileStempeln, desc: 'Ein-/Ausstempeln & Absenzen' },
-  { label: 'Dienstplan', to: '/schedule', image: tileDienstplan, desc: 'Schichtplanung & Übersicht' },
-  { label: 'Mitarbeiter', to: '/employees', image: tileMitarbeiter, desc: 'Personal verwalten' },
-  { label: 'Dienste', to: '/shifts', image: tileDienste, desc: 'Schichttypen konfigurieren' },
-  { label: 'Tageskontrolle', to: '/time-control', image: tileStempeln, desc: 'Tägliche Zeitkontrolle' },
-  { label: 'Validierung', to: '/validation', image: tileValidierung, desc: 'Monatsrapport prüfen' },
-  { label: 'Export', to: '/export', image: tileExport, desc: 'Daten exportieren' },
-  { label: 'Budget', to: '/budget', image: tileBudget, desc: 'Umsatz & Kostenanalyse' },
-  { label: 'Betrieb', to: '/business', image: tileBetrieb, desc: 'Betriebsinformationen' },
-];
 
 const employeeTiles = [
   { label: 'Stempeln', to: '/clock', image: tileStempeln, desc: 'Ein-/Ausstempeln & Absenzen' },
@@ -33,13 +17,16 @@ const employeeTiles = [
 export default function AdminDashboard() {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
-  const tiles = isAdmin ? adminTiles : employeeTiles;
+
+  if (isAdmin) {
+    return <LiveOpsDashboard />;
+  }
 
   return (
     <div className="space-y-6 pb-20 md:pb-4">
       <h1 className="font-heading text-2xl font-bold">Dashboard</h1>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        {tiles.map((tile, i) => (
+        {employeeTiles.map((tile, i) => (
           <motion.div
             key={tile.to}
             initial={{ opacity: 0, y: 20 }}
