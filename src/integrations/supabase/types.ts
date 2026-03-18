@@ -14,89 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      employee_groups: {
-        Row: {
-          id: string
-          name: string
-          description: string | null
-          color: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          description?: string | null
-          color?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          description?: string | null
-          color?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      gav_rules: {
-        Row: {
-          id: string
-          group_id: string
-          weekly_hours: number
-          max_daily_hours: number
-          max_weekly_hours: number
-          vacation_weeks: number
-          holidays_per_year: number
-          overtime_threshold: number | null
-          night_surcharge_pct: number
-          sunday_surcharge_pct: number
-          notes: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          group_id: string
-          weekly_hours?: number
-          max_daily_hours?: number
-          max_weekly_hours?: number
-          vacation_weeks?: number
-          holidays_per_year?: number
-          overtime_threshold?: number | null
-          night_surcharge_pct?: number
-          sunday_surcharge_pct?: number
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          group_id?: string
-          weekly_hours?: number
-          max_daily_hours?: number
-          max_weekly_hours?: number
-          vacation_weeks?: number
-          holidays_per_year?: number
-          overtime_threshold?: number | null
-          night_surcharge_pct?: number
-          sunday_surcharge_pct?: number
-          notes?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "gav_rules_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: true
-            referencedRelation: "employee_groups"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
       business_settings: {
         Row: {
           address: string | null
@@ -178,6 +95,33 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_groups: {
+        Row: {
+          color: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       employees: {
         Row: {
           allowed_shift_types: Json | null
@@ -186,6 +130,7 @@ export type Database = {
           created_at: string
           employee_type: Database["public"]["Enums"]["employee_type"]
           first_name: string
+          group_id: string | null
           holiday_surcharge_percent: number | null
           hourly_rate: number | null
           id: string
@@ -195,7 +140,6 @@ export type Database = {
           overtime_balance_hours: number | null
           pensum_percent: number | null
           position: string
-          group_id: string | null
           updated_at: string
           user_id: string | null
           vacation_days_per_year: number | null
@@ -209,6 +153,7 @@ export type Database = {
           created_at?: string
           employee_type?: Database["public"]["Enums"]["employee_type"]
           first_name: string
+          group_id?: string | null
           holiday_surcharge_percent?: number | null
           hourly_rate?: number | null
           id?: string
@@ -218,7 +163,6 @@ export type Database = {
           overtime_balance_hours?: number | null
           pensum_percent?: number | null
           position?: string
-          group_id?: string | null
           updated_at?: string
           user_id?: string | null
           vacation_days_per_year?: number | null
@@ -232,6 +176,7 @@ export type Database = {
           created_at?: string
           employee_type?: Database["public"]["Enums"]["employee_type"]
           first_name?: string
+          group_id?: string | null
           holiday_surcharge_percent?: number | null
           hourly_rate?: number | null
           id?: string
@@ -241,7 +186,6 @@ export type Database = {
           overtime_balance_hours?: number | null
           pensum_percent?: number | null
           position?: string
-          group_id?: string | null
           updated_at?: string
           user_id?: string | null
           vacation_days_per_year?: number | null
@@ -255,7 +199,7 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "employee_groups"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       form_templates: {
@@ -287,6 +231,62 @@ export type Database = {
           uploaded_by?: string | null
         }
         Relationships: []
+      }
+      gav_rules: {
+        Row: {
+          created_at: string
+          group_id: string
+          holidays_per_year: number
+          id: string
+          max_daily_hours: number
+          max_weekly_hours: number
+          night_surcharge_pct: number
+          notes: string | null
+          overtime_threshold: number | null
+          sunday_surcharge_pct: number
+          updated_at: string
+          vacation_weeks: number
+          weekly_hours: number
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          holidays_per_year?: number
+          id?: string
+          max_daily_hours?: number
+          max_weekly_hours?: number
+          night_surcharge_pct?: number
+          notes?: string | null
+          overtime_threshold?: number | null
+          sunday_surcharge_pct?: number
+          updated_at?: string
+          vacation_weeks?: number
+          weekly_hours?: number
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          holidays_per_year?: number
+          id?: string
+          max_daily_hours?: number
+          max_weekly_hours?: number
+          night_surcharge_pct?: number
+          notes?: string | null
+          overtime_threshold?: number | null
+          sunday_surcharge_pct?: number
+          updated_at?: string
+          vacation_weeks?: number
+          weekly_hours?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gav_rules_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: true
+            referencedRelation: "employee_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       leave_requests: {
         Row: {
