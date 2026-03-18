@@ -13,23 +13,60 @@ export function Layout({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { isAdmin, user, signOut } = useAuth();
 
-  const navItems = [
-    { to: '/', label: 'Dashboard', icon: LayoutDashboard, adminOnly: false },
-    { to: '/clock', label: 'Stempeln', icon: Clock, adminOnly: false },
-    { to: '/schedule', label: 'Dienstplan', icon: CalendarDays, adminOnly: false },
-    { to: '/leave', label: 'Abwesenheit', icon: CalendarPlus, adminOnly: false },
-    { to: '/employees', label: 'Mitarbeiter', icon: Users, adminOnly: true },
-    { to: '/groups', label: 'Gruppen & GAV', icon: ShieldCheck, adminOnly: true },
-    { to: '/shifts', label: 'Dienste', icon: Layers, adminOnly: true },
-    { to: '/time-control', label: 'Tageskontrolle', icon: ClipboardCheck, adminOnly: true },
-    { to: '/validation', label: 'Validierung', icon: CalendarCheck, adminOnly: true },
-    { to: '/export', label: 'Export', icon: FileDown, adminOnly: true },
-    { to: '/budget', label: 'Budget', icon: DollarSign, adminOnly: true },
-    { to: '/business', label: 'Betrieb', icon: Building2, adminOnly: true },
-    { to: '/settings', label: 'Einstellungen', icon: Settings, adminOnly: true },
+  const navGroups = [
+    {
+      label: null,
+      items: [
+        { to: '/', label: 'Dashboard', icon: LayoutDashboard, adminOnly: false },
+      ],
+    },
+    {
+      label: 'Mein Bereich',
+      items: [
+        { to: '/clock', label: 'Stempeln', icon: Clock, adminOnly: false },
+        { to: '/schedule', label: 'Dienstplan', icon: CalendarDays, adminOnly: false },
+        { to: '/leave', label: 'Abwesenheit', icon: CalendarPlus, adminOnly: false },
+      ],
+    },
+    {
+      label: 'Personal',
+      items: [
+        { to: '/employees', label: 'Mitarbeiter', icon: Users, adminOnly: true },
+        { to: '/groups', label: 'Gruppen & GAV', icon: ShieldCheck, adminOnly: true },
+        { to: '/shifts', label: 'Dienste', icon: Layers, adminOnly: true },
+      ],
+    },
+    {
+      label: 'Kontrolle',
+      items: [
+        { to: '/time-control', label: 'Tageskontrolle', icon: ClipboardCheck, adminOnly: true },
+        { to: '/validation', label: 'Validierung', icon: CalendarCheck, adminOnly: true },
+      ],
+    },
+    {
+      label: 'Auswertung',
+      items: [
+        { to: '/export', label: 'Export', icon: FileDown, adminOnly: true },
+        { to: '/budget', label: 'Budget', icon: DollarSign, adminOnly: true },
+      ],
+    },
+    {
+      label: 'Verwaltung',
+      items: [
+        { to: '/business', label: 'Betrieb', icon: Building2, adminOnly: true },
+        { to: '/settings', label: 'Einstellungen', icon: Settings, adminOnly: true },
+      ],
+    },
   ];
 
-  const visibleItems = navItems.filter(item => !item.adminOnly || isAdmin);
+  const visibleGroups = navGroups
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => !item.adminOnly || isAdmin),
+    }))
+    .filter(group => group.items.length > 0);
+
+  const allVisibleItems = visibleGroups.flatMap(g => g.items);
 
   return (
     <div className="min-h-screen bg-background">
@@ -62,13 +99,24 @@ export function Layout({ children }: { children: ReactNode }) {
 
       <div className="flex">
         <nav className="hidden w-56 border-r bg-card md:block">
-          <div className="flex h-[calc(100vh-3.5rem)] flex-col justify-between p-4">
-            <div className="space-y-1">
-              {visibleItems.map((item) => (
-                <NavLink key={item.to} to={item.to} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent">
-                  <item.icon className="h-4 w-4" />
-                  {item.label}
-                </NavLink>
+          <div className="flex h-[calc(100vh-3.5rem)] flex-col justify-between overflow-y-auto p-3">
+            <div className="space-y-4">
+              {visibleGroups.map((group, gi) => (
+                <div key={gi}>
+                  {group.label && (
+                    <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                      {group.label}
+                    </p>
+                  )}
+                  <div className="space-y-0.5">
+                    {group.items.map((item) => (
+                      <NavLink key={item.to} to={item.to} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent">
+                        <item.icon className="h-4 w-4" />
+                        {item.label}
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
             <Button variant="ghost" className="justify-start gap-3 text-sm text-muted-foreground" onClick={signOut}>
@@ -79,20 +127,31 @@ export function Layout({ children }: { children: ReactNode }) {
         </nav>
 
         {menuOpen && (
-          <div className="fixed inset-0 top-14 z-40 bg-card md:hidden">
-            <nav className="flex flex-col gap-1 p-4">
-              {visibleItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-3 rounded-lg px-4 py-3 text-base transition-colors hover:bg-accent"
-                >
-                  <item.icon className="h-5 w-5" />
-                  {item.label}
-                </NavLink>
+          <div className="fixed inset-0 top-14 z-40 overflow-y-auto bg-card md:hidden">
+            <nav className="flex flex-col gap-4 p-4">
+              {visibleGroups.map((group, gi) => (
+                <div key={gi}>
+                  {group.label && (
+                    <p className="mb-1 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                      {group.label}
+                    </p>
+                  )}
+                  <div className="space-y-0.5">
+                    {group.items.map((item) => (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-3 rounded-lg px-4 py-3 text-base transition-colors hover:bg-accent"
+                      >
+                        <item.icon className="h-5 w-5" />
+                        {item.label}
+                      </NavLink>
+                    ))}
+                  </div>
+                </div>
               ))}
-              <Button variant="ghost" className="justify-start gap-3 mt-4 text-muted-foreground" onClick={signOut}>
+              <Button variant="ghost" className="justify-start gap-3 mt-2 text-muted-foreground" onClick={signOut}>
                 <LogOut className="h-5 w-5" />
                 Abmelden
               </Button>
@@ -109,12 +168,12 @@ export function Layout({ children }: { children: ReactNode }) {
 
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-card/95 backdrop-blur md:hidden">
         <div className="flex justify-around py-2">
-          {visibleItems.map((item) => (
+          {allVisibleItems.slice(0, 5).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               onClick={() => setMenuOpen(false)}
-              className="flex flex-col items-center gap-1 px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              className="flex flex-col items-center gap-1 px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
             >
               <item.icon className="h-5 w-5" />
               {item.label}
