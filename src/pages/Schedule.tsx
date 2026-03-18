@@ -353,6 +353,33 @@ export default function Schedule() {
     return groups;
   }, [employees, isAdmin, hiddenCostCenters, employeeViewMode, myEmployee, employeeId, assignments, customEmployeeOrder]);
 
+  // Employee row drag-and-drop reorder handlers
+  const handleRowDragStart = (e: DragEvent, empId: string) => {
+    e.dataTransfer.setData('text/row-reorder', empId);
+    e.dataTransfer.effectAllowed = 'move';
+    setDragRowId(empId);
+  };
+
+  const handleRowDragOver = (e: DragEvent) => {
+    if (!e.dataTransfer.types.includes('text/row-reorder')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleRowDrop = (e: DragEvent, targetEmpId: string) => {
+    const sourceId = e.dataTransfer.getData('text/row-reorder');
+    if (!sourceId || sourceId === targetEmpId) { setDragRowId(null); return; }
+    e.preventDefault();
+    const currentOrder = customEmployeeOrder || costCenterGroups.flatMap(g => g.employees.map(emp => emp.id));
+    const newOrder = currentOrder.filter(id => id !== sourceId);
+    const targetIdx = newOrder.indexOf(targetEmpId);
+    newOrder.splice(targetIdx, 0, sourceId);
+    setCustomEmployeeOrder(newOrder);
+    setDragRowId(null);
+  };
+
+  const resetEmployeeOrder = () => setCustomEmployeeOrder(null);
+
   const toggleCostCenter = (cc: string) => {
     setHiddenCostCenters(prev => {
       const next = new Set(prev);
