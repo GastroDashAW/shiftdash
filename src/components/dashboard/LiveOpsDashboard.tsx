@@ -54,6 +54,15 @@ export function LiveOpsDashboard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [expandedShifts, setExpandedShifts] = useState<Set<string>>(new Set());
+
+  const toggleShift = (id: string) => {
+    setExpandedShifts(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   // Quick action state
   const [clockInDialog, setClockInDialog] = useState<{ empId: string; empName: string } | null>(null);
