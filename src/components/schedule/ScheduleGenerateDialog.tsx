@@ -54,7 +54,7 @@ export function ScheduleGenerateDialog({ onGenerate, generating, defaultMonth }:
         <div className="grid grid-cols-2 gap-4 py-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Von</label>
-            <Popover>
+            <Popover modal={false}>
               <PopoverTrigger asChild>
                 <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}>
                   <CalendarIcon className="mr-2 h-4 w-4" />
