@@ -219,13 +219,13 @@ export function LiveOpsDashboard() {
 
   const handleLogAbsence = async () => {
     if (!absenceDialog) return;
-    const { error } = await supabase.from('time_entries').insert({
+    const { error } = await supabase.from('time_entries').insert([{
       employee_id: absenceDialog.empId,
       date: today(),
-      absence_type: absenceType,
+      absence_type: absenceType as any,
       absence_hours: parseFloat(absenceHours) || 0,
       effective_hours: 0,
-    });
+    }]);
     if (error) { toast.error('Fehler beim Erfassen'); return; }
     toast.success('Absenz erfasst');
     setAbsenceDialog(null);
