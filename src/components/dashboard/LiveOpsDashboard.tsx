@@ -248,6 +248,54 @@ export function LiveOpsDashboard() {
 
   const showWarningBanner = kpi.total > 0 && kpi.notClockedIn / kpi.total > 0.3;
 
+  // Budget / cost forecast
+  const costForecast = useMemo(() => {
+    const socialPct = (businessSettings?.social_charges_percent ?? 15) / 100;
+    const shiftTypeMap = new Map(shiftTypes.map((st: any) => [st.id, st]));
+
+    const calcDayCost = (dayAssignments: any[]) => {
+      let totalCost = 0;
+      let headcount = 0;
+      let totalHours = 0;
+
+      for (const a of dayAssignments) {
+        const st = shiftTypeMap.get(a.shift_type_id);
+        if (!st || !st.start_time || !st.end_time) continue;
+
+        const emp = a.employees as any;
+        if (!emp) continue;
+
+        const startMin = timeToMinutes(st.start_time);
+        const endMin = timeToMinutes(st.end_time);
+        const breakMin = st.break_minutes || 0;
+        const netHours = Math.max(0, (endMin - startMin - breakMin) / 60);
+
+        let rate = emp.hourly_rate;
+        if (!rate && emp.monthly_salary && emp.weekly_hours) {
+          rate = emp.monthly_salary / (emp.weekly_hours * 4.33);
+        }
+        if (!rate) continue;
+
+        totalCost += netHours * rate * (1 + socialPct);
+        totalHours += netHours;
+        headcount++;
+      }
+      return { totalCost, headcount, totalHours };
+    };
+
+    const todayWithSalary = assignments.map((a: any) => {
+      const emp = allEmployees.find((e: any) => e.id === a.employee_id);
+      return { ...a, employees: emp || a.employees };
+    });
+
+    return {
+      today: calcDayCost(todayWithSalary),
+      tomorrow: calcDayCost(tomorrowAssignments),
+    };
+  }, [assignments, tomorrowAssignments, allEmployees, shiftTypes, businessSettings]);
+
+  const formatCHF = (v: number) => v.toLocaleString('de-CH', { style: 'currency', currency: 'CHF', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
   // Quick actions
   const handleManualClockIn = async () => {
     if (!clockInDialog) return;
