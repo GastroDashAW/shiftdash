@@ -282,8 +282,12 @@ export function LiveOpsDashboard() {
     switch (status) {
       case 'clocked_in':
         return <Badge className="bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))]">🟢 {detail}</Badge>;
+      case 'done':
+        return <Badge variant="secondary">✅ {detail}</Badge>;
       case 'late':
         return <Badge variant="destructive">🔴 {detail}</Badge>;
+      case 'no_show':
+        return <Badge variant="destructive" className="opacity-60">⚫ {detail}</Badge>;
       case 'upcoming':
         return <Badge className="bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]">🟡 Kommt noch</Badge>;
       case 'absent':
