@@ -156,15 +156,26 @@ export function LiveOpsDashboard() {
       } else if (clockedEntry) {
         status = 'clocked_in';
         detail = formatClockTime(clockedEntry.adjusted_clock_in || clockedEntry.clock_in);
+        // If clocked out, mark as done
+        if (clockedEntry.clock_out) {
+          status = 'done';
+          detail = `${formatClockTime(clockedEntry.clock_in)}–${formatClockTime(clockedEntry.clock_out)}`;
+        }
       } else if (st.start_time) {
         const shiftStart = timeToMinutes(st.start_time);
-        if (nowMinutes > shiftStart + 10) {
+        const shiftEnd = st.end_time ? timeToMinutes(st.end_time) : null;
+
+        if (shiftEnd && nowMinutes > shiftEnd) {
+          // Shift is over and no clock-in → no show
+          status = 'no_show';
+          detail = 'Nicht erschienen';
+        } else if (nowMinutes > shiftStart + 10) {
+          // Shift started >10 min ago → late
           status = 'late';
           detail = `${nowMinutes - shiftStart} Min. zu spät`;
         }
+        // else: upcoming (default)
       }
-
-      groups.get(st.id)!.employees.push({
         id: emp.id,
         name: `${emp.first_name} ${emp.last_name}`,
         position: emp.position || '',
