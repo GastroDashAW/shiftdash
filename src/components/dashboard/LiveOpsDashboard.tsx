@@ -433,6 +433,39 @@ export function LiveOpsDashboard() {
         </CardContent></Card>
       </motion.div>
 
+      {/* Budget forecast */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+      >
+        <Card>
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-semibold">Personaleinsatz</span>
+              <span className="text-[10px] text-muted-foreground ml-auto">inkl. Lohnnebenkosten</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border p-3">
+                <p className="text-[11px] text-muted-foreground mb-1">Heute</p>
+                <p className="text-lg font-bold">{formatCHF(costForecast.today.totalCost)}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {costForecast.today.headcount} MA · {costForecast.today.totalHours.toFixed(1)}h
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-[11px] text-muted-foreground mb-1">Morgen</p>
+                <p className="text-lg font-bold">{formatCHF(costForecast.tomorrow.totalCost)}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {costForecast.tomorrow.headcount} MA · {costForecast.tomorrow.totalHours.toFixed(1)}h
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
       {/* Shift groups */}
       {shiftGroupData.length === 0 ? (
         <Card>
