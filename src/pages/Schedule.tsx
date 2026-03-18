@@ -318,16 +318,25 @@ export default function Schedule() {
     let currentGroup: Employee[] = [];
 
     // Filter employees based on role and view mode
-    let filteredEmployees = employees;
+    let filteredEmployees = [...employees];
     if (isAdmin) {
-      filteredEmployees = employees.filter(emp => !hiddenCostCenters.has(emp.cost_center || ''));
+      filteredEmployees = filteredEmployees.filter(emp => !hiddenCostCenters.has(emp.cost_center || ''));
+      // Apply custom order if set
+      if (customEmployeeOrder) {
+        const orderMap = new Map(customEmployeeOrder.map((id, i) => [id, i]));
+        filteredEmployees.sort((a, b) => {
+          const aIdx = orderMap.get(a.id) ?? 9999;
+          const bIdx = orderMap.get(b.id) ?? 9999;
+          return aIdx - bIdx;
+        });
+        // When custom order is active, don't group by cost center
+        return [{ costCenter: '', employees: filteredEmployees }];
+      }
     } else {
       if (employeeViewMode === 'my_cc' && myEmployee) {
-        filteredEmployees = employees.filter(emp => emp.cost_center === myEmployee.cost_center);
+        filteredEmployees = filteredEmployees.filter(emp => emp.cost_center === myEmployee.cost_center);
       } else if (employeeViewMode === 'my_shifts' && employeeId) {
-        const myAssignedDates = new Set(assignments.filter(a => a.employee_id === employeeId).map(a => a.date));
-        // Show only own employee if they have assignments, otherwise show empty
-        filteredEmployees = employees.filter(emp => emp.id === employeeId);
+        filteredEmployees = filteredEmployees.filter(emp => emp.id === employeeId);
       }
     }
 
@@ -342,7 +351,7 @@ export default function Schedule() {
     }
     if (currentGroup.length > 0) groups.push({ costCenter: current, employees: currentGroup });
     return groups;
-  }, [employees, isAdmin, hiddenCostCenters, employeeViewMode, myEmployee, employeeId, assignments]);
+  }, [employees, isAdmin, hiddenCostCenters, employeeViewMode, myEmployee, employeeId, assignments, customEmployeeOrder]);
 
   const toggleCostCenter = (cc: string) => {
     setHiddenCostCenters(prev => {
