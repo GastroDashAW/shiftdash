@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import {
-  RefreshCw, AlertTriangle, Clock, MoreVertical, UserPlus,
+  RefreshCw, AlertTriangle, Clock, MoreVertical, UserPlus, ChevronDown,
   Coffee, Palmtree, Cross, Shield, HelpCircle, Siren,
 } from 'lucide-react';
 import {
@@ -39,7 +39,7 @@ const absenceIcons: Record<string, typeof Palmtree> = {
   holiday: Coffee, military: Shield, other: HelpCircle,
 };
 
-type EmployeeStatus = 'clocked_in' | 'late' | 'upcoming' | 'absent';
+type EmployeeStatus = 'clocked_in' | 'late' | 'upcoming' | 'absent' | 'done' | 'no_show';
 
 function timeToMinutes(t: string): number {
   const [h, m] = t.split(':').map(Number);
@@ -54,6 +54,15 @@ export function LiveOpsDashboard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [expandedShifts, setExpandedShifts] = useState<Set<string>>(new Set());
+
+  const toggleShift = (id: string) => {
+    setExpandedShifts(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   // Quick action state
   const [clockInDialog, setClockInDialog] = useState<{ empId: string; empName: string } | null>(null);
@@ -147,12 +156,25 @@ export function LiveOpsDashboard() {
       } else if (clockedEntry) {
         status = 'clocked_in';
         detail = formatClockTime(clockedEntry.adjusted_clock_in || clockedEntry.clock_in);
+        // If clocked out, mark as done
+        if (clockedEntry.clock_out) {
+          status = 'done';
+          detail = `${formatClockTime(clockedEntry.clock_in)}–${formatClockTime(clockedEntry.clock_out)}`;
+        }
       } else if (st.start_time) {
         const shiftStart = timeToMinutes(st.start_time);
-        if (nowMinutes > shiftStart + 10) {
+        const shiftEnd = st.end_time ? timeToMinutes(st.end_time) : null;
+
+        if (shiftEnd && nowMinutes > shiftEnd) {
+          // Shift is over and no clock-in → no show
+          status = 'no_show';
+          detail = 'Nicht erschienen';
+        } else if (nowMinutes > shiftStart + 10) {
+          // Shift started >10 min ago → late
           status = 'late';
           detail = `${nowMinutes - shiftStart} Min. zu spät`;
         }
+        // else: upcoming (default)
       }
 
       groups.get(st.id)!.employees.push({
@@ -189,8 +211,8 @@ export function LiveOpsDashboard() {
   const kpi = useMemo(() => {
     const allScheduledEmps = shiftGroupData.flatMap(g => g.employees);
     return {
-      clockedIn: allScheduledEmps.filter(e => e.status === 'clocked_in').length,
-      late: allScheduledEmps.filter(e => e.status === 'late').length,
+      clockedIn: allScheduledEmps.filter(e => e.status === 'clocked_in' || e.status === 'done').length,
+      late: allScheduledEmps.filter(e => e.status === 'late' || e.status === 'no_show').length,
       upcoming: allScheduledEmps.filter(e => e.status === 'upcoming').length,
       absent: absenceEntries.length,
       total: allScheduledEmps.length,
@@ -260,8 +282,12 @@ export function LiveOpsDashboard() {
     switch (status) {
       case 'clocked_in':
         return <Badge className="bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))]">🟢 {detail}</Badge>;
+      case 'done':
+        return <Badge variant="secondary">✅ {detail}</Badge>;
       case 'late':
         return <Badge variant="destructive">🔴 {detail}</Badge>;
+      case 'no_show':
+        return <Badge variant="destructive" className="opacity-60">⚫ {detail}</Badge>;
       case 'upcoming':
         return <Badge className="bg-[hsl(var(--warning))] text-[hsl(var(--warning-foreground))]">🟡 Kommt noch</Badge>;
       case 'absent':
@@ -307,29 +333,29 @@ export function LiveOpsDashboard() {
 
       {/* KPI row */}
       <motion.div
-        className="grid grid-cols-2 gap-3 sm:grid-cols-4"
+        className="grid grid-cols-4 gap-2"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <Card><CardContent className="flex items-center gap-3 py-4">
-          <span className="text-2xl">🟢</span>
-          <div><p className="text-2xl font-bold">{kpi.clockedIn}</p><p className="text-xs text-muted-foreground">Eingestempelt</p></div>
+        <Card><CardContent className="flex items-center gap-2 py-3 px-3">
+          <span className="text-lg">🟢</span>
+          <div><p className="text-xl font-bold">{kpi.clockedIn}</p><p className="text-[10px] text-muted-foreground leading-tight">Eingestempelt</p></div>
         </CardContent></Card>
 
-        <Card><CardContent className="flex items-center gap-3 py-4">
-          <span className="text-2xl">🔴</span>
-          <div><p className="text-2xl font-bold">{kpi.late}</p><p className="text-xs text-muted-foreground">Fehlt / Zu spät</p></div>
+        <Card><CardContent className="flex items-center gap-2 py-3 px-3">
+          <span className="text-lg">🔴</span>
+          <div><p className="text-xl font-bold">{kpi.late}</p><p className="text-[10px] text-muted-foreground leading-tight">Fehlt</p></div>
         </CardContent></Card>
 
-        <Card><CardContent className="flex items-center gap-3 py-4">
-          <span className="text-2xl">🟡</span>
-          <div><p className="text-2xl font-bold">{kpi.upcoming}</p><p className="text-xs text-muted-foreground">Kommt noch</p></div>
+        <Card><CardContent className="flex items-center gap-2 py-3 px-3">
+          <span className="text-lg">🟡</span>
+          <div><p className="text-xl font-bold">{kpi.upcoming}</p><p className="text-[10px] text-muted-foreground leading-tight">Kommt noch</p></div>
         </CardContent></Card>
 
-        <Card><CardContent className="flex items-center gap-3 py-4">
-          <span className="text-2xl">⚫</span>
-          <div><p className="text-2xl font-bold">{kpi.absent}</p><p className="text-xs text-muted-foreground">Absenz</p></div>
+        <Card><CardContent className="flex items-center gap-2 py-3 px-3">
+          <span className="text-lg">⚫</span>
+          <div><p className="text-xl font-bold">{kpi.absent}</p><p className="text-[10px] text-muted-foreground leading-tight">Absenz</p></div>
         </CardContent></Card>
       </motion.div>
 
@@ -350,64 +376,80 @@ export function LiveOpsDashboard() {
             transition={{ delay: 0.15 + gi * 0.05 }}
           >
             <Card>
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="h-4 w-4 rounded-full"
-                    style={{ backgroundColor: group.shiftType.color }}
-                  />
-                  <CardTitle className="text-base">
-                    {group.shiftType.name}
-                    {group.shiftType.start_time && group.shiftType.end_time && (
-                      <span className="ml-2 font-normal text-muted-foreground">
-                        · {group.shiftType.start_time.substring(0, 5)}–{group.shiftType.end_time.substring(0, 5)}
-                      </span>
-                    )}
-                  </CardTitle>
-                  <Badge variant="secondary" className="ml-auto">{group.employees.length}</Badge>
+              <button
+                className="flex w-full items-center gap-3 px-6 py-3 text-left"
+                onClick={() => toggleShift(group.shiftType.id)}
+              >
+                <div
+                  className="h-3 w-3 rounded-full shrink-0"
+                  style={{ backgroundColor: group.shiftType.color }}
+                />
+                <span className="text-sm font-semibold flex-1">
+                  {group.shiftType.name}
+                  {group.shiftType.start_time && group.shiftType.end_time && (
+                    <span className="ml-1.5 font-normal text-muted-foreground">
+                      · {group.shiftType.start_time.substring(0, 5)}–{group.shiftType.end_time.substring(0, 5)}
+                    </span>
+                  )}
+                </span>
+                {/* Mini status summary */}
+                <div className="flex items-center gap-1.5 text-xs">
+                  {group.employees.filter(e => e.status === 'clocked_in' || e.status === 'done').length > 0 && (
+                    <span className="text-[hsl(var(--success))]">🟢{group.employees.filter(e => e.status === 'clocked_in' || e.status === 'done').length}</span>
+                  )}
+                  {group.employees.filter(e => e.status === 'late' || e.status === 'no_show').length > 0 && (
+                    <span className="text-destructive">🔴{group.employees.filter(e => e.status === 'late' || e.status === 'no_show').length}</span>
+                  )}
+                  {group.employees.filter(e => e.status === 'upcoming').length > 0 && (
+                    <span className="text-[hsl(var(--warning))]">🟡{group.employees.filter(e => e.status === 'upcoming').length}</span>
+                  )}
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {group.employees.map((emp) => (
-                  <div
-                    key={emp.id}
-                    className={`flex items-center justify-between rounded-lg border p-3 transition-colors ${
-                      emp.isLate ? 'border-destructive bg-destructive/5' : ''
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {emp.isLate && <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" />}
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{emp.name}</p>
-                        {emp.position && (
-                          <p className="text-xs text-muted-foreground truncate">{emp.position}</p>
-                        )}
+                <Badge variant="secondary" className="shrink-0">{group.employees.length}</Badge>
+                <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${expandedShifts.has(group.shiftType.id) ? 'rotate-180' : ''}`} />
+              </button>
+              {expandedShifts.has(group.shiftType.id) && (
+                <CardContent className="space-y-1.5 pt-0 pb-3">
+                  {group.employees.map((emp) => (
+                    <div
+                      key={emp.id}
+                      className={`flex items-center justify-between rounded-lg border p-2.5 transition-colors ${
+                        emp.isLate ? 'border-destructive bg-destructive/5' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        {emp.isLate && <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-destructive" />}
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{emp.name}</p>
+                          {emp.position && (
+                            <p className="text-[11px] text-muted-foreground truncate">{emp.position}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {statusBadge(emp.status, emp.detail)}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setClockInDialog({ empId: emp.id, empName: emp.name })}>
+                              Manuell einstempeln
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setAbsenceDialog({ empId: emp.id, empName: emp.name })}>
+                              Absenz erfassen
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setNoteDialog({ empId: emp.id, empName: emp.name })}>
+                              Notiz hinzufügen
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {statusBadge(emp.status, emp.detail)}
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setClockInDialog({ empId: emp.id, empName: emp.name })}>
-                            Manuell einstempeln
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setAbsenceDialog({ empId: emp.id, empName: emp.name })}>
-                            Absenz erfassen
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setNoteDialog({ empId: emp.id, empName: emp.name })}>
-                            Notiz hinzufügen
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
+                  ))}
+                </CardContent>
+              )}
             </Card>
           </motion.div>
         ))
