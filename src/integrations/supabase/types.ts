@@ -95,6 +95,33 @@ export type Database = {
         }
         Relationships: []
       }
+      employee_groups: {
+        Row: {
+          color: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       employees: {
         Row: {
           allowed_shift_types: Json | null
@@ -103,6 +130,7 @@ export type Database = {
           created_at: string
           employee_type: Database["public"]["Enums"]["employee_type"]
           first_name: string
+          group_id: string | null
           holiday_surcharge_percent: number | null
           hourly_rate: number | null
           id: string
@@ -125,6 +153,7 @@ export type Database = {
           created_at?: string
           employee_type?: Database["public"]["Enums"]["employee_type"]
           first_name: string
+          group_id?: string | null
           holiday_surcharge_percent?: number | null
           hourly_rate?: number | null
           id?: string
@@ -147,6 +176,7 @@ export type Database = {
           created_at?: string
           employee_type?: Database["public"]["Enums"]["employee_type"]
           first_name?: string
+          group_id?: string | null
           holiday_surcharge_percent?: number | null
           hourly_rate?: number | null
           id?: string
@@ -162,7 +192,15 @@ export type Database = {
           vacation_surcharge_percent?: number | null
           weekly_hours?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "employees_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "employee_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       form_templates: {
         Row: {
@@ -193,6 +231,62 @@ export type Database = {
           uploaded_by?: string | null
         }
         Relationships: []
+      }
+      gav_rules: {
+        Row: {
+          created_at: string
+          group_id: string
+          holidays_per_year: number
+          id: string
+          max_daily_hours: number
+          max_weekly_hours: number
+          night_surcharge_pct: number
+          notes: string | null
+          overtime_threshold: number | null
+          sunday_surcharge_pct: number
+          updated_at: string
+          vacation_weeks: number
+          weekly_hours: number
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          holidays_per_year?: number
+          id?: string
+          max_daily_hours?: number
+          max_weekly_hours?: number
+          night_surcharge_pct?: number
+          notes?: string | null
+          overtime_threshold?: number | null
+          sunday_surcharge_pct?: number
+          updated_at?: string
+          vacation_weeks?: number
+          weekly_hours?: number
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          holidays_per_year?: number
+          id?: string
+          max_daily_hours?: number
+          max_weekly_hours?: number
+          night_surcharge_pct?: number
+          notes?: string | null
+          overtime_threshold?: number | null
+          sunday_surcharge_pct?: number
+          updated_at?: string
+          vacation_weeks?: number
+          weekly_hours?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gav_rules_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: true
+            referencedRelation: "employee_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       leave_requests: {
         Row: {
