@@ -71,8 +71,8 @@ export function AuthPage() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}>
             
-            <img src={shiftDashLogo} alt={BRANDING.appName} className="h-28 w-28 object-fill" />
-            <h1 className="font-heading text-4xl font-bold tracking-tight">{BRANDING.appName}</h1>
+            <img alt={BRANDING.appName} className="h-28 w-28 object-fill" src="/lovable-uploads/cde71f63-3f75-4ef9-a554-8c54ff83e493.png" />
+            
             <p className="text-sm text-muted-foreground">{BRANDING.tagline}</p>
           </motion.div>
 
