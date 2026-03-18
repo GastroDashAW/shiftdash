@@ -14,28 +14,6 @@ export function Layout({ children }: { children: ReactNode }) {
   const { isAdmin, user, signOut } = useAuth();
   const location = useLocation();
 
-  // Auto-open groups that contain the active route
-  const getInitialOpen = () => {
-    const openSet = new Set<string>();
-    navGroups.forEach(g => {
-      if (g.label && g.items.some(i => location.pathname === i.to)) {
-        openSet.add(g.label);
-      }
-    });
-    return openSet;
-  };
-
-  const [openGroups, setOpenGroups] = useState<Set<string>>(getInitialOpen);
-
-  const toggleGroup = (label: string) => {
-    setOpenGroups(prev => {
-      const next = new Set(prev);
-      if (next.has(label)) next.delete(label);
-      else next.add(label);
-      return next;
-    });
-  };
-
   const navGroups = [
     {
       label: null,
@@ -81,6 +59,25 @@ export function Layout({ children }: { children: ReactNode }) {
       ],
     },
   ];
+
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
+    const openSet = new Set<string>();
+    navGroups.forEach(g => {
+      if (g.label && g.items.some(i => location.pathname === i.to)) {
+        openSet.add(g.label);
+      }
+    });
+    return openSet;
+  });
+
+  const toggleGroup = (label: string) => {
+    setOpenGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  };
 
   const visibleGroups = navGroups
     .map(group => ({
