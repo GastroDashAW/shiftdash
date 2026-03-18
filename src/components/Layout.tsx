@@ -123,22 +123,39 @@ export function Layout({ children }: { children: ReactNode }) {
       <div className="flex">
         <nav className="hidden w-56 border-r bg-card md:block">
           <div className="flex h-[calc(100vh-3.5rem)] flex-col justify-between overflow-y-auto p-3">
-            <div className="space-y-4">
+            <div className="space-y-1">
               {visibleGroups.map((group, gi) => (
                 <div key={gi}>
-                  {group.label && (
-                    <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                      {group.label}
-                    </p>
+                  {group.label ? (
+                    <>
+                      <button
+                        onClick={() => toggleGroup(group.label!)}
+                        className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent/50"
+                      >
+                        {group.label}
+                        <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${openGroups.has(group.label!) ? 'rotate-180' : ''}`} />
+                      </button>
+                      {openGroups.has(group.label!) && (
+                        <div className="ml-2 space-y-0.5 border-l border-border/50 pl-2">
+                          {group.items.map((item) => (
+                            <NavLink key={item.to} to={item.to} className="flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors hover:bg-accent">
+                              <item.icon className="h-4 w-4" />
+                              {item.label}
+                            </NavLink>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="space-y-0.5">
+                      {group.items.map((item) => (
+                        <NavLink key={item.to} to={item.to} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent">
+                          <item.icon className="h-4 w-4" />
+                          {item.label}
+                        </NavLink>
+                      ))}
+                    </div>
                   )}
-                  <div className="space-y-0.5">
-                    {group.items.map((item) => (
-                      <NavLink key={item.to} to={item.to} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent">
-                        <item.icon className="h-4 w-4" />
-                        {item.label}
-                      </NavLink>
-                    ))}
-                  </div>
                 </div>
               ))}
             </div>
