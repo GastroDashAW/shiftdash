@@ -168,27 +168,49 @@ export function Layout({ children }: { children: ReactNode }) {
 
         {menuOpen && (
           <div className="fixed inset-0 top-14 z-40 overflow-y-auto bg-card md:hidden">
-            <nav className="flex flex-col gap-4 p-4">
+            <nav className="flex flex-col gap-2 p-4">
               {visibleGroups.map((group, gi) => (
                 <div key={gi}>
-                  {group.label && (
-                    <p className="mb-1 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                      {group.label}
-                    </p>
-                  )}
-                  <div className="space-y-0.5">
-                    {group.items.map((item) => (
-                      <NavLink
-                        key={item.to}
-                        to={item.to}
-                        onClick={() => setMenuOpen(false)}
-                        className="flex items-center gap-3 rounded-lg px-4 py-3 text-base transition-colors hover:bg-accent"
+                  {group.label ? (
+                    <>
+                      <button
+                        onClick={() => toggleGroup(group.label!)}
+                        className="flex w-full items-center justify-between rounded-lg px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent/50"
                       >
-                        <item.icon className="h-5 w-5" />
-                        {item.label}
-                      </NavLink>
-                    ))}
-                  </div>
+                        {group.label}
+                        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${openGroups.has(group.label!) ? 'rotate-180' : ''}`} />
+                      </button>
+                      {openGroups.has(group.label!) && (
+                        <div className="ml-3 space-y-0.5 border-l border-border/50 pl-3">
+                          {group.items.map((item) => (
+                            <NavLink
+                              key={item.to}
+                              to={item.to}
+                              onClick={() => setMenuOpen(false)}
+                              className="flex items-center gap-3 rounded-lg px-4 py-2.5 text-base transition-colors hover:bg-accent"
+                            >
+                              <item.icon className="h-5 w-5" />
+                              {item.label}
+                            </NavLink>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="space-y-0.5">
+                      {group.items.map((item) => (
+                        <NavLink
+                          key={item.to}
+                          to={item.to}
+                          onClick={() => setMenuOpen(false)}
+                          className="flex items-center gap-3 rounded-lg px-4 py-3 text-base transition-colors hover:bg-accent"
+                        >
+                          <item.icon className="h-5 w-5" />
+                          {item.label}
+                        </NavLink>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
               <Button variant="ghost" className="justify-start gap-3 mt-2 text-muted-foreground" onClick={signOut}>
