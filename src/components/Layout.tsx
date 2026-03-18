@@ -1,10 +1,10 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
-import { Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut, ClipboardCheck, LayoutDashboard, DollarSign, Building2, CalendarPlus, Clock, Settings, ShieldCheck } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut, ClipboardCheck, LayoutDashboard, DollarSign, Building2, CalendarPlus, Clock, Settings, ShieldCheck, ChevronDown } from 'lucide-react';
 import shiftDashLogo from '@/assets/shiftdash-logo.png';
-import { useState } from 'react';
 import { BRANDING } from '@/config/branding';
 import { StagingBanner } from '@/components/StagingBanner';
 import { DashChatWidget } from '@/components/dash/DashChatWidget';
