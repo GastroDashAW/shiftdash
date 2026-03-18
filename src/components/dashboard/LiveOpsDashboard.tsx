@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import {
-  RefreshCw, AlertTriangle, Clock, MoreVertical, UserPlus,
+  RefreshCw, AlertTriangle, Clock, MoreVertical, UserPlus, ChevronDown,
   Coffee, Palmtree, Cross, Shield, HelpCircle, Siren,
 } from 'lucide-react';
 import {
