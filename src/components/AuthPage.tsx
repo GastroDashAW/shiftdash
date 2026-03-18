@@ -34,22 +34,22 @@ export function AuthPage() {
           className="relative hidden lg:flex lg:w-1/2 flex-col items-center justify-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.8 }}
-        >
+          transition={{ duration: 0.8 }}>
+          
           <img
             src={loginBg}
             alt="Restaurant"
-            className="absolute inset-0 h-full w-full object-cover"
-          />
+            className="absolute inset-0 h-full w-full object-cover" />
+          
           <div className="absolute inset-0 bg-black/50" />
           {/* Centered branding */}
           <motion.div
             className="relative z-10 flex flex-col items-center text-center"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-          >
-            <img src={shiftDashLogo} alt={BRANDING.appName} className="mb-5 h-20 w-20 object-contain drop-shadow-lg" />
+            transition={{ delay: 0.3, duration: 0.6 }}>
+            
+            
             <h1 className="font-heading text-5xl font-bold tracking-tight text-white drop-shadow-lg">
               {BRANDING.appName}
             </h1>
@@ -69,9 +69,9 @@ export function AuthPage() {
             className="hidden lg:flex flex-col items-center gap-3"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
-          >
-            <img src={shiftDashLogo} alt={BRANDING.appName} className="h-28 w-28 object-contain" />
+            transition={{ duration: 0.5 }}>
+            
+            <img src={shiftDashLogo} alt={BRANDING.appName} className="h-28 w-28 object-fill" />
             <h1 className="font-heading text-4xl font-bold tracking-tight">{BRANDING.appName}</h1>
             <p className="text-sm text-muted-foreground">{BRANDING.tagline}</p>
           </motion.div>
@@ -81,8 +81,8 @@ export function AuthPage() {
             className="flex flex-col items-center gap-2 lg:hidden"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-          >
+            transition={{ duration: 0.4 }}>
+            
             <img src={shiftDashLogo} alt={BRANDING.appName} className="h-20 w-20 object-contain" />
             <h1 className="font-heading text-2xl font-bold">{BRANDING.appName}</h1>
             <p className="text-xs text-muted-foreground">{BRANDING.tagline}</p>
@@ -93,8 +93,8 @@ export function AuthPage() {
             className="w-full max-w-sm"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-          >
+            transition={{ delay: 0.2, duration: 0.5 }}>
+            
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">E-Mail</Label>
@@ -104,8 +104,8 @@ export function AuthPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="max@restaurant.ch"
-                  required
-                />
+                  required />
+                
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Passwort</Label>
@@ -116,8 +116,8 @@ export function AuthPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  minLength={6}
-                />
+                  minLength={6} />
+                
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? 'Laden...' : 'Anmelden'}
@@ -130,12 +130,12 @@ export function AuthPage() {
             className="w-full max-w-sm"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
-          >
+            transition={{ delay: 0.4, duration: 0.5 }}>
+            
             <DashWelcome />
           </motion.div>
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 }
