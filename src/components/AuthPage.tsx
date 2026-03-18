@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import shiftDashLogo from '@/assets/shiftdash-logo.png';
-import loginBg from '@/assets/login-bg.jpg';
+import loginBg from '@/assets/login-bg.png';
 import { BRANDING } from '@/config/branding';
 import { StagingBanner } from '@/components/StagingBanner';
 import { DashWelcome } from '@/components/dash/DashWelcome';
