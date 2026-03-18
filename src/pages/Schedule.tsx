@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, Printer, Filter, Undo2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle, Printer, Filter, Undo2, GripVertical } from 'lucide-react';
 import { validateSchedule, LgavViolation } from '@/lib/lgav-schedule-validation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
