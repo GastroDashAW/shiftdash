@@ -31,35 +31,17 @@ export function AuthPage() {
       <div className="flex flex-1 flex-col lg:flex-row">
         {/* Left side – hero image */}
         <motion.div
-          className="relative hidden lg:flex lg:w-1/2 flex-col items-center justify-center"
+          className="relative hidden lg:flex lg:w-1/2"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8 }}>
           
           <img
             src={loginBg}
-            alt="Restaurant"
+            alt="Restaurant-Team bei der Zeiterfassung"
             className="absolute inset-0 h-full w-full object-cover" />
           
-          <div className="absolute inset-0 bg-black/50" />
-          {/* Centered branding */}
-          <motion.div
-            className="relative z-10 flex flex-col items-center text-center"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.6 }}>
-            
-            
-            <h1 className="font-heading text-5xl font-bold tracking-tight text-white drop-shadow-lg">
-              {BRANDING.appName}
-            </h1>
-            <p className="mt-3 max-w-xs text-lg text-white/80">
-              {BRANDING.tagline}
-            </p>
-            <p className="mt-1.5 text-sm text-white/50">
-              Personalmanagement & Zeiterfassung für die Schweizer Gastronomie
-            </p>
-          </motion.div>
+          <div className="absolute inset-0 bg-black/20" />
         </motion.div>
 
         {/* Right side */}
