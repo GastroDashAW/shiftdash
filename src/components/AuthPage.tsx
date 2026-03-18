@@ -63,7 +63,19 @@ export function AuthPage() {
         </motion.div>
 
         {/* Right side */}
-        <div className="flex flex-1 flex-col items-center justify-center gap-5 px-6 py-10 lg:w-1/2 lg:px-12">
+        <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-10 lg:w-1/2 lg:px-12">
+          {/* Large logo – desktop */}
+          <motion.div
+            className="hidden lg:flex flex-col items-center gap-3"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <img src={shiftDashLogo} alt={BRANDING.appName} className="h-28 w-28 object-contain" />
+            <h1 className="font-heading text-4xl font-bold tracking-tight">{BRANDING.appName}</h1>
+            <p className="text-sm text-muted-foreground">{BRANDING.tagline}</p>
+          </motion.div>
+
           {/* Mobile-only logo */}
           <motion.div
             className="flex flex-col items-center gap-2 lg:hidden"
@@ -71,7 +83,7 @@ export function AuthPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
-            <img src={shiftDashLogo} alt={BRANDING.appName} className="h-14 w-14 object-contain" />
+            <img src={shiftDashLogo} alt={BRANDING.appName} className="h-20 w-20 object-contain" />
             <h1 className="font-heading text-2xl font-bold">{BRANDING.appName}</h1>
             <p className="text-xs text-muted-foreground">{BRANDING.tagline}</p>
           </motion.div>
@@ -83,11 +95,6 @@ export function AuthPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.5 }}
           >
-            <div className="mb-5 hidden lg:block">
-              <h2 className="font-heading text-2xl font-bold">Willkommen zurück</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Melde dich an, um fortzufahren</p>
-            </div>
-
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">E-Mail</Label>
