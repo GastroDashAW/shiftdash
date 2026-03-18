@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import {
   RefreshCw, AlertTriangle, Clock, MoreVertical, UserPlus, ChevronDown,
-  Coffee, Palmtree, Cross, Shield, HelpCircle, Siren,
+  Coffee, Palmtree, Cross, Shield, HelpCircle, Siren, Wallet,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -25,6 +25,11 @@ import { useAuth } from '@/hooks/useAuth';
 const REFETCH_INTERVAL = 300_000; // 5 min
 
 const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Zurich' });
+const tomorrow = () => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Zurich' });
+};
 
 const absenceLabels: Record<string, string> = {
   vacation: 'Ferien', sick: 'Krankheit', accident: 'Unfall',
@@ -117,6 +122,28 @@ export function LiveOpsDashboard() {
       return data || [];
     },
     refetchInterval: REFETCH_INTERVAL,
+  });
+
+  // Fetch tomorrow's schedule assignments
+  const { data: tomorrowAssignments = [] } = useQuery({
+    queryKey: ['schedule-assignments-tomorrow'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('schedule_assignments')
+        .select('*, employees(id, first_name, last_name, hourly_rate, monthly_salary, weekly_hours)')
+        .eq('date', tomorrow());
+      return data || [];
+    },
+    refetchInterval: REFETCH_INTERVAL,
+  });
+
+  // Fetch business settings for social charges
+  const { data: businessSettings } = useQuery({
+    queryKey: ['business-settings'],
+    queryFn: async () => {
+      const { data } = await supabase.from('business_settings').select('social_charges_percent').limit(1).single();
+      return data;
+    },
   });
 
   const handleRefresh = () => {
@@ -220,6 +247,54 @@ export function LiveOpsDashboard() {
   }, [shiftGroupData, absenceEntries]);
 
   const showWarningBanner = kpi.total > 0 && kpi.notClockedIn / kpi.total > 0.3;
+
+  // Budget / cost forecast
+  const costForecast = useMemo(() => {
+    const socialPct = (businessSettings?.social_charges_percent ?? 15) / 100;
+    const shiftTypeMap = new Map(shiftTypes.map((st: any) => [st.id, st]));
+
+    const calcDayCost = (dayAssignments: any[]) => {
+      let totalCost = 0;
+      let headcount = 0;
+      let totalHours = 0;
+
+      for (const a of dayAssignments) {
+        const st = shiftTypeMap.get(a.shift_type_id);
+        if (!st || !st.start_time || !st.end_time) continue;
+
+        const emp = a.employees as any;
+        if (!emp) continue;
+
+        const startMin = timeToMinutes(st.start_time);
+        const endMin = timeToMinutes(st.end_time);
+        const breakMin = st.break_minutes || 0;
+        const netHours = Math.max(0, (endMin - startMin - breakMin) / 60);
+
+        let rate = emp.hourly_rate;
+        if (!rate && emp.monthly_salary && emp.weekly_hours) {
+          rate = emp.monthly_salary / (emp.weekly_hours * 4.33);
+        }
+        if (!rate) continue;
+
+        totalCost += netHours * rate * (1 + socialPct);
+        totalHours += netHours;
+        headcount++;
+      }
+      return { totalCost, headcount, totalHours };
+    };
+
+    const todayWithSalary = assignments.map((a: any) => {
+      const emp = allEmployees.find((e: any) => e.id === a.employee_id);
+      return { ...a, employees: emp || a.employees };
+    });
+
+    return {
+      today: calcDayCost(todayWithSalary),
+      tomorrow: calcDayCost(tomorrowAssignments),
+    };
+  }, [assignments, tomorrowAssignments, allEmployees, shiftTypes, businessSettings]);
+
+  const formatCHF = (v: number) => v.toLocaleString('de-CH', { style: 'currency', currency: 'CHF', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
   // Quick actions
   const handleManualClockIn = async () => {
@@ -356,6 +431,39 @@ export function LiveOpsDashboard() {
           <span className="text-lg">⚫</span>
           <div><p className="text-xl font-bold">{kpi.absent}</p><p className="text-[10px] text-muted-foreground leading-tight">Absenz</p></div>
         </CardContent></Card>
+      </motion.div>
+
+      {/* Budget forecast */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+      >
+        <Card>
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-semibold">Personaleinsatz</span>
+              <span className="text-[10px] text-muted-foreground ml-auto">inkl. Lohnnebenkosten</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border p-3">
+                <p className="text-[11px] text-muted-foreground mb-1">Heute</p>
+                <p className="text-lg font-bold">{formatCHF(costForecast.today.totalCost)}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {costForecast.today.headcount} MA · {costForecast.today.totalHours.toFixed(1)}h
+                </p>
+              </div>
+              <div className="rounded-lg border p-3">
+                <p className="text-[11px] text-muted-foreground mb-1">Morgen</p>
+                <p className="text-lg font-bold">{formatCHF(costForecast.tomorrow.totalCost)}</p>
+                <p className="text-[10px] text-muted-foreground">
+                  {costForecast.tomorrow.headcount} MA · {costForecast.tomorrow.totalHours.toFixed(1)}h
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </motion.div>
 
       {/* Shift groups */}
