@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import {
   RefreshCw, AlertTriangle, Clock, MoreVertical, UserPlus, ChevronDown,
-  Coffee, Palmtree, Cross, Shield, HelpCircle, Siren,
+  Coffee, Palmtree, Cross, Shield, HelpCircle, Siren, Wallet,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
