@@ -25,6 +25,11 @@ import { useAuth } from '@/hooks/useAuth';
 const REFETCH_INTERVAL = 300_000; // 5 min
 
 const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Zurich' });
+const tomorrow = () => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Zurich' });
+};
 
 const absenceLabels: Record<string, string> = {
   vacation: 'Ferien', sick: 'Krankheit', accident: 'Unfall',
