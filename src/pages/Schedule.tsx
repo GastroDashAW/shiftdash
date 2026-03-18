@@ -892,16 +892,37 @@ export default function Schedule() {
               <tbody>
                 {costCenterGroups.map(group => (
                   <>
-                    <tr key={`cc-${group.costCenter}`} className="bg-muted/40">
-                      <td colSpan={daysInMonth + 1} className="sticky left-0 px-3 py-1 text-[10px] font-heading font-semibold uppercase tracking-wider text-muted-foreground print:static print:px-1 print:text-[8px]">
-                        {group.costCenter || 'Ohne Kostenstelle'}
-                      </td>
-                    </tr>
+                    {group.costCenter && !customEmployeeOrder && (
+                      <tr key={`cc-${group.costCenter}`} className="bg-muted/40">
+                        <td colSpan={daysInMonth + 1} className="sticky left-0 px-3 py-1 text-[10px] font-heading font-semibold uppercase tracking-wider text-muted-foreground print:static print:px-1 print:text-[8px]">
+                          {group.costCenter || 'Ohne Kostenstelle'}
+                        </td>
+                      </tr>
+                    )}
                     {group.employees.map(emp => (
-                      <tr key={emp.id} className="border-b last:border-0 hover:bg-muted/30 print:hover:bg-transparent">
+                      <tr
+                        key={emp.id}
+                        className={`border-b last:border-0 hover:bg-muted/30 print:hover:bg-transparent transition-colors ${dragRowId === emp.id ? 'opacity-40' : ''}`}
+                        onDragOver={isAdmin ? handleRowDragOver : undefined}
+                        onDrop={isAdmin ? (e) => handleRowDrop(e, emp.id) : undefined}
+                      >
                         <td className="sticky left-0 z-10 bg-card px-3 py-2 whitespace-nowrap print:static print:px-1 print:py-1">
-                          <div className="font-medium text-xs print:text-[9px]">{emp.first_name} {emp.last_name}</div>
-                          <div className="text-[10px] text-muted-foreground print:text-[8px]">{emp.position}</div>
+                          <div className="flex items-center gap-1.5">
+                            {isAdmin && (
+                              <div
+                                draggable
+                                onDragStart={(e) => handleRowDragStart(e as unknown as DragEvent, emp.id)}
+                                onDragEnd={() => setDragRowId(null)}
+                                className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground print:hidden shrink-0"
+                              >
+                                <GripVertical className="h-3.5 w-3.5" />
+                              </div>
+                            )}
+                            <div>
+                              <div className="font-medium text-xs print:text-[9px]">{emp.first_name} {emp.last_name}</div>
+                              <div className="text-[10px] text-muted-foreground print:text-[8px]">{emp.position}</div>
+                            </div>
+                          </div>
                         </td>
                         {days.map(day => {
                           const assignment = getAssignment(emp.id, day);
