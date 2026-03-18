@@ -204,13 +204,13 @@ export function LiveOpsDashboard() {
   const handleManualClockIn = async () => {
     if (!clockInDialog) return;
     const now = new Date();
-    const { error } = await supabase.from('time_entries').insert({
+    const { error } = await supabase.from('time_entries').insert([{
       employee_id: clockInDialog.empId,
       date: today(),
       clock_in: now.toISOString(),
       effective_hours: 0,
       notes: `Manuell eingestempelt durch Admin`,
-    });
+    }]);
     if (error) { toast.error('Fehler beim Einstempeln'); return; }
     toast.success(`${clockInDialog.empName} manuell eingestempelt`);
     setClockInDialog(null);
