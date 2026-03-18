@@ -7,6 +7,7 @@ import shiftDashLogo from '@/assets/shiftdash-logo.png';
 import { useState } from 'react';
 import { BRANDING } from '@/config/branding';
 import { StagingBanner } from '@/components/StagingBanner';
+import { DashChatWidget } from '@/components/dash/DashChatWidget';
 
 export function Layout({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
