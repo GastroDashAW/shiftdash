@@ -72,6 +72,9 @@ export function AuthPage() {
           </form>
         </CardContent>
       </Card>
+      <div className="lg:hidden">
+        <DashWelcome />
+      </div>
       </div>
     </div>
   );

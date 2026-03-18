@@ -122,6 +122,8 @@ export function Layout({ children }: { children: ReactNode }) {
           ))}
         </div>
       </nav>
+
+      <DashChatWidget />
     </div>
   );
 }
