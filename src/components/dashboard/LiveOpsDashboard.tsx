@@ -176,6 +176,8 @@ export function LiveOpsDashboard() {
         }
         // else: upcoming (default)
       }
+
+      groups.get(st.id)!.employees.push({
         id: emp.id,
         name: `${emp.first_name} ${emp.last_name}`,
         position: emp.position || '',
