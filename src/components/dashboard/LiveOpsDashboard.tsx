@@ -138,6 +138,9 @@ export function LiveOpsDashboard() {
       const st = shiftTypeMap.get(a.shift_type_id);
       if (!st || !a.employees) continue;
 
+      // Skip non-working shift types (Frei, Ferien, Krank, Unfall) — they have no start_time
+      if (!st.start_time) continue;
+
       if (!groups.has(st.id)) {
         groups.set(st.id, { shiftType: st, employees: [] });
       }
@@ -156,7 +159,6 @@ export function LiveOpsDashboard() {
       } else if (clockedEntry) {
         status = 'clocked_in';
         detail = formatClockTime(clockedEntry.adjusted_clock_in || clockedEntry.clock_in);
-        // If clocked out, mark as done
         if (clockedEntry.clock_out) {
           status = 'done';
           detail = `${formatClockTime(clockedEntry.clock_in)}–${formatClockTime(clockedEntry.clock_out)}`;
@@ -166,15 +168,12 @@ export function LiveOpsDashboard() {
         const shiftEnd = st.end_time ? timeToMinutes(st.end_time) : null;
 
         if (shiftEnd && nowMinutes > shiftEnd) {
-          // Shift is over and no clock-in → no show
           status = 'no_show';
           detail = 'Nicht erschienen';
         } else if (nowMinutes > shiftStart + 10) {
-          // Shift started >10 min ago → late
           status = 'late';
           detail = `${nowMinutes - shiftStart} Min. zu spät`;
         }
-        // else: upcoming (default)
       }
 
       groups.get(st.id)!.employees.push({
