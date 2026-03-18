@@ -211,8 +211,8 @@ export function LiveOpsDashboard() {
   const kpi = useMemo(() => {
     const allScheduledEmps = shiftGroupData.flatMap(g => g.employees);
     return {
-      clockedIn: allScheduledEmps.filter(e => e.status === 'clocked_in').length,
-      late: allScheduledEmps.filter(e => e.status === 'late').length,
+      clockedIn: allScheduledEmps.filter(e => e.status === 'clocked_in' || e.status === 'done').length,
+      late: allScheduledEmps.filter(e => e.status === 'late' || e.status === 'no_show').length,
       upcoming: allScheduledEmps.filter(e => e.status === 'upcoming').length,
       absent: absenceEntries.length,
       total: allScheduledEmps.length,
