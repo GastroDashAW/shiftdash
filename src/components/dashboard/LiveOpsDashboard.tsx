@@ -39,7 +39,7 @@ const absenceIcons: Record<string, typeof Palmtree> = {
   holiday: Coffee, military: Shield, other: HelpCircle,
 };
 
-type EmployeeStatus = 'clocked_in' | 'late' | 'upcoming' | 'absent';
+type EmployeeStatus = 'clocked_in' | 'late' | 'upcoming' | 'absent' | 'done' | 'no_show';
 
 function timeToMinutes(t: string): number {
   const [h, m] = t.split(':').map(Number);
