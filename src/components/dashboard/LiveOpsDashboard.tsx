@@ -333,29 +333,29 @@ export function LiveOpsDashboard() {
 
       {/* KPI row */}
       <motion.div
-        className="grid grid-cols-2 gap-3 sm:grid-cols-4"
+        className="grid grid-cols-4 gap-2"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <Card><CardContent className="flex items-center gap-3 py-4">
-          <span className="text-2xl">🟢</span>
-          <div><p className="text-2xl font-bold">{kpi.clockedIn}</p><p className="text-xs text-muted-foreground">Eingestempelt</p></div>
+        <Card><CardContent className="flex items-center gap-2 py-3 px-3">
+          <span className="text-lg">🟢</span>
+          <div><p className="text-xl font-bold">{kpi.clockedIn}</p><p className="text-[10px] text-muted-foreground leading-tight">Eingestempelt</p></div>
         </CardContent></Card>
 
-        <Card><CardContent className="flex items-center gap-3 py-4">
-          <span className="text-2xl">🔴</span>
-          <div><p className="text-2xl font-bold">{kpi.late}</p><p className="text-xs text-muted-foreground">Fehlt / Zu spät</p></div>
+        <Card><CardContent className="flex items-center gap-2 py-3 px-3">
+          <span className="text-lg">🔴</span>
+          <div><p className="text-xl font-bold">{kpi.late}</p><p className="text-[10px] text-muted-foreground leading-tight">Fehlt</p></div>
         </CardContent></Card>
 
-        <Card><CardContent className="flex items-center gap-3 py-4">
-          <span className="text-2xl">🟡</span>
-          <div><p className="text-2xl font-bold">{kpi.upcoming}</p><p className="text-xs text-muted-foreground">Kommt noch</p></div>
+        <Card><CardContent className="flex items-center gap-2 py-3 px-3">
+          <span className="text-lg">🟡</span>
+          <div><p className="text-xl font-bold">{kpi.upcoming}</p><p className="text-[10px] text-muted-foreground leading-tight">Kommt noch</p></div>
         </CardContent></Card>
 
-        <Card><CardContent className="flex items-center gap-3 py-4">
-          <span className="text-2xl">⚫</span>
-          <div><p className="text-2xl font-bold">{kpi.absent}</p><p className="text-xs text-muted-foreground">Absenz</p></div>
+        <Card><CardContent className="flex items-center gap-2 py-3 px-3">
+          <span className="text-lg">⚫</span>
+          <div><p className="text-xl font-bold">{kpi.absent}</p><p className="text-[10px] text-muted-foreground leading-tight">Absenz</p></div>
         </CardContent></Card>
       </motion.div>
 
