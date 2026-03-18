@@ -124,6 +124,28 @@ export function LiveOpsDashboard() {
     refetchInterval: REFETCH_INTERVAL,
   });
 
+  // Fetch tomorrow's schedule assignments
+  const { data: tomorrowAssignments = [] } = useQuery({
+    queryKey: ['schedule-assignments-tomorrow'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('schedule_assignments')
+        .select('*, employees(id, first_name, last_name, hourly_rate, monthly_salary, weekly_hours)')
+        .eq('date', tomorrow());
+      return data || [];
+    },
+    refetchInterval: REFETCH_INTERVAL,
+  });
+
+  // Fetch business settings for social charges
+  const { data: businessSettings } = useQuery({
+    queryKey: ['business-settings'],
+    queryFn: async () => {
+      const { data } = await supabase.from('business_settings').select('social_charges_percent').limit(1).single();
+      return data;
+    },
+  });
+
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: ['schedule-assignments-today'] });
     queryClient.invalidateQueries({ queryKey: ['time-entries-today'] });
