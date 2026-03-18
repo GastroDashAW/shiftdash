@@ -13,23 +13,60 @@ export function Layout({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { isAdmin, user, signOut } = useAuth();
 
-  const navItems = [
-    { to: '/', label: 'Dashboard', icon: LayoutDashboard, adminOnly: false },
-    { to: '/clock', label: 'Stempeln', icon: Clock, adminOnly: false },
-    { to: '/schedule', label: 'Dienstplan', icon: CalendarDays, adminOnly: false },
-    { to: '/leave', label: 'Abwesenheit', icon: CalendarPlus, adminOnly: false },
-    { to: '/employees', label: 'Mitarbeiter', icon: Users, adminOnly: true },
-    { to: '/groups', label: 'Gruppen & GAV', icon: ShieldCheck, adminOnly: true },
-    { to: '/shifts', label: 'Dienste', icon: Layers, adminOnly: true },
-    { to: '/time-control', label: 'Tageskontrolle', icon: ClipboardCheck, adminOnly: true },
-    { to: '/validation', label: 'Validierung', icon: CalendarCheck, adminOnly: true },
-    { to: '/export', label: 'Export', icon: FileDown, adminOnly: true },
-    { to: '/budget', label: 'Budget', icon: DollarSign, adminOnly: true },
-    { to: '/business', label: 'Betrieb', icon: Building2, adminOnly: true },
-    { to: '/settings', label: 'Einstellungen', icon: Settings, adminOnly: true },
+  const navGroups = [
+    {
+      label: null,
+      items: [
+        { to: '/', label: 'Dashboard', icon: LayoutDashboard, adminOnly: false },
+      ],
+    },
+    {
+      label: 'Mein Bereich',
+      items: [
+        { to: '/clock', label: 'Stempeln', icon: Clock, adminOnly: false },
+        { to: '/schedule', label: 'Dienstplan', icon: CalendarDays, adminOnly: false },
+        { to: '/leave', label: 'Abwesenheit', icon: CalendarPlus, adminOnly: false },
+      ],
+    },
+    {
+      label: 'Personal',
+      items: [
+        { to: '/employees', label: 'Mitarbeiter', icon: Users, adminOnly: true },
+        { to: '/groups', label: 'Gruppen & GAV', icon: ShieldCheck, adminOnly: true },
+        { to: '/shifts', label: 'Dienste', icon: Layers, adminOnly: true },
+      ],
+    },
+    {
+      label: 'Kontrolle',
+      items: [
+        { to: '/time-control', label: 'Tageskontrolle', icon: ClipboardCheck, adminOnly: true },
+        { to: '/validation', label: 'Validierung', icon: CalendarCheck, adminOnly: true },
+      ],
+    },
+    {
+      label: 'Auswertung',
+      items: [
+        { to: '/export', label: 'Export', icon: FileDown, adminOnly: true },
+        { to: '/budget', label: 'Budget', icon: DollarSign, adminOnly: true },
+      ],
+    },
+    {
+      label: 'Verwaltung',
+      items: [
+        { to: '/business', label: 'Betrieb', icon: Building2, adminOnly: true },
+        { to: '/settings', label: 'Einstellungen', icon: Settings, adminOnly: true },
+      ],
+    },
   ];
 
-  const visibleItems = navItems.filter(item => !item.adminOnly || isAdmin);
+  const visibleGroups = navGroups
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => !item.adminOnly || isAdmin),
+    }))
+    .filter(group => group.items.length > 0);
+
+  const allVisibleItems = visibleGroups.flatMap(g => g.items);
 
   return (
     <div className="min-h-screen bg-background">
