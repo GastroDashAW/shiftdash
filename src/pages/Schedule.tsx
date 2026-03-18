@@ -785,6 +785,11 @@ export default function Schedule() {
                   <span>{cc || 'Ohne Kostenstelle'}</span>
                 </label>
               ))}
+              {customEmployeeOrder && (
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={resetEmployeeOrder}>
+                  <Undo2 className="h-3 w-3 mr-1" /> Reihenfolge zurücksetzen
+                </Button>
+              )}
             </div>
           ) : (
             <Select value={employeeViewMode} onValueChange={(v) => setEmployeeViewMode(v as 'all' | 'my_cc' | 'my_shifts')}>
