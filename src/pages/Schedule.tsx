@@ -556,11 +556,7 @@ export default function Schedule() {
         const dayLabel = dayLabels[dow];
         const leaveKeyPrefix = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 
-        // Collect employees already manually assigned for this day
         const assignedToday = new Set<string>();
-        for (const a of manualAssignmentRows) {
-          if (a.date === dateStr) assignedToday.add(a.employee_id);
-        }
 
         // Closed day: assign Frei to everyone not manually assigned
         if (closedDays.includes(dow)) {
