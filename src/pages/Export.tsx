@@ -9,6 +9,7 @@ import { FileDown, FileText, FileSpreadsheet, Trash2, Download } from 'lucide-re
 import { formatHoursMinutes, formatTime, calculateMonthlyTargetHours, calculateHourlySurcharges } from '@/lib/lgav';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getYearOptions } from '@/lib/date';
 
 const monthNames = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
