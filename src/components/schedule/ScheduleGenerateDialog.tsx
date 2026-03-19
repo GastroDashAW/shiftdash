@@ -55,7 +55,7 @@ export function ScheduleGenerateDialog({ onGenerate, generating, defaultMonth }:
         <div className="grid grid-cols-2 gap-4 py-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Von</label>
-            <Popover modal={false}>
+            <Popover open={startOpen} onOpenChange={setStartOpen} modal={false}>
               <PopoverTrigger asChild>
                 <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}>
                   <CalendarIcon className="mr-2 h-4 w-4" />
@@ -66,7 +66,7 @@ export function ScheduleGenerateDialog({ onGenerate, generating, defaultMonth }:
                 <Calendar
                   mode="single"
                   selected={startDate}
-                  onSelect={(d) => d && setStartDate(d)}
+                  onSelect={(d) => { if (d) { setStartDate(d); setStartOpen(false); } }}
                   locale={de}
                   initialFocus
                   className={cn("p-3 pointer-events-auto")}
