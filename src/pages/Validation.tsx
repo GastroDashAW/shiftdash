@@ -6,10 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { CalendarCheck, Check, X, Printer, Mail } from 'lucide-react';
+import { CalendarCheck, Check, X, Printer, Mail, Loader2, Send } from 'lucide-react';
 import { formatHoursMinutes, formatTime, calculateMonthlyTargetHours, calculateHourlySurcharges } from '@/lib/lgav';
+import { getEndOfMonthString, getYearOptions } from '@/lib/date';
 
 const monthNames = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+const years = getYearOptions();
 
 export default function Validation() {
   const { user } = useAuth();
@@ -38,7 +40,7 @@ export default function Validation() {
     setEmployee(emp);
 
     const startDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
-    const endDate = new Date(selectedYear, selectedMonth, 0).toISOString().split('T')[0];
+    const endDate = getEndOfMonthString(selectedYear, selectedMonth);
 
     supabase
       .from('time_entries')
@@ -76,73 +78,74 @@ export default function Validation() {
     const pendingIds = entries.filter(e => e.status === 'pending').map(e => e.id);
     if (pendingIds.length === 0) return;
 
-    const { error } = await supabase
-      .from('time_entries')
-      .update({ status: 'approved' })
-      .in('id', pendingIds);
+    const previousEntries = [...entries];
 
-    if (error) { toast.error('Fehler'); return; }
+    try {
+      const { error } = await supabase
+        .from('time_entries')
+        .update({ status: 'approved' })
+        .in('id', pendingIds);
 
-    const previousBalance = employee?.overtime_balance_hours || 0;
-    const newBalance = previousBalance + overtime;
+      if (error) throw error;
 
-    await supabase.from('monthly_summaries').upsert({
-      employee_id: selectedEmployee,
-      year: selectedYear,
-      month: selectedMonth,
-      total_worked_hours: totalWorked,
-      target_hours: targetHours,
-      overtime_hours: overtime,
-      overtime_balance: newBalance,
-      vacation_days_used: entries.filter(e => e.absence_type === 'vacation').reduce((s, e) => s + (e.absence_hours || 0) / 8, 0),
-      sick_days: entries.filter(e => e.absence_type === 'sick').reduce((s, e) => s + (e.absence_hours || 0) / 8, 0),
-      accident_days: entries.filter(e => e.absence_type === 'accident').reduce((s, e) => s + (e.absence_hours || 0) / 8, 0),
-      is_approved: true,
-      approved_at: new Date().toISOString(),
-      approved_by: user?.id,
-    }, { onConflict: 'employee_id,year,month' });
+      const previousBalance = employee?.overtime_balance_hours || 0;
+      const newBalance = previousBalance + overtime;
 
-    if (employee?.employee_type === 'fixed') {
-      await supabase.from('employees').update({ overtime_balance_hours: newBalance }).eq('id', selectedEmployee);
+      const { error: upsertError } = await supabase.from('monthly_summaries').upsert({
+        employee_id: selectedEmployee,
+        year: selectedYear,
+        month: selectedMonth,
+        total_worked_hours: totalWorked,
+        target_hours: targetHours,
+        overtime_hours: overtime,
+        overtime_balance: newBalance,
+        vacation_days_used: entries.filter(e => e.absence_type === 'vacation').reduce((s, e) => s + (e.absence_hours || 0) / 8, 0),
+        sick_days: entries.filter(e => e.absence_type === 'sick').reduce((s, e) => s + (e.absence_hours || 0) / 8, 0),
+        accident_days: entries.filter(e => e.absence_type === 'accident').reduce((s, e) => s + (e.absence_hours || 0) / 8, 0),
+        is_approved: true,
+        approved_at: new Date().toISOString(),
+        approved_by: user?.id,
+      }, { onConflict: 'employee_id,year,month' });
+
+      if (upsertError) throw upsertError;
+
+      if (employee?.employee_type === 'fixed') {
+        const { error: empError } = await supabase.from('employees').update({ overtime_balance_hours: newBalance }).eq('id', selectedEmployee);
+        if (empError) throw empError;
+      }
+
+      toast.success('Monat visiert ✓');
+      setEntries(prev => prev.map(e => pendingIds.includes(e.id) ? { ...e, status: 'approved' } : e));
+    } catch (err: any) {
+      console.error('[Validation] handleApproveAll', err);
+      toast.error('Fehler: ' + (err.message || 'Unbekannter Fehler'));
+      // Revert optimistic update
+      setEntries(previousEntries);
     }
-
-    toast.success('Monat visiert ✓');
-    setEntries(prev => prev.map(e => pendingIds.includes(e.id) ? { ...e, status: 'approved' } : e));
   };
 
   const handleRejectEntry = async (entryId: string) => {
-    await supabase.from('time_entries').update({ status: 'rejected' }).eq('id', entryId);
-    setEntries(prev => prev.map(e => e.id === entryId ? { ...e, status: 'rejected' } : e));
-    toast.info('Eintrag abgelehnt');
+    const previousEntries = [...entries];
+    try {
+      // Optimistic update
+      setEntries(prev => prev.map(e => e.id === entryId ? { ...e, status: 'rejected' } : e));
+
+      const { error } = await supabase.from('time_entries').update({ status: 'rejected' }).eq('id', entryId);
+      if (error) throw error;
+
+      toast.info('Eintrag abgelehnt');
+    } catch (err: any) {
+      console.error('[Validation] handleRejectEntry', err);
+      toast.error('Fehler: ' + (err.message || 'Unbekannter Fehler'));
+      setEntries(previousEntries);
+    }
   };
 
   const handlePrint = () => {
     window.print();
   };
 
-  const handleEmail = async () => {
-    if (!employee) return;
-
-    // Get employee's login email from profiles
-    let email: string | null = null;
-    if (employee.user_id) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('user_id', employee.user_id)
-        .maybeSingle();
-      email = profile?.email || null;
-    }
-
-    if (!email) {
-      toast.error('Kein E-Mail für diesen Mitarbeiter hinterlegt');
-      return;
-    }
-
-    const subject = encodeURIComponent(
-      `Monatsabrechnung ${monthNames[selectedMonth - 1]} ${selectedYear} – ${employee.first_name} ${employee.last_name}`
-    );
-
+  const buildEmailContent = () => {
     const lines = [
       `Monatsabrechnung ${monthNames[selectedMonth - 1]} ${selectedYear}`,
       `Mitarbeiter: ${employee.first_name} ${employee.last_name}`,
@@ -178,8 +181,85 @@ export default function Validation() {
       lines.push(`Visiert am ${new Date(summary.approved_at).toLocaleDateString('de-CH')}`);
     }
 
-    const body = encodeURIComponent(lines.join('\n'));
+    return lines.join('\n');
+  };
+
+  const openMailto = (email: string, emailContent: string) => {
+    const subject = encodeURIComponent(
+      `Monatsabrechnung ${monthNames[selectedMonth - 1]} ${selectedYear} – ${employee.first_name} ${employee.last_name}`
+    );
+    const body = encodeURIComponent(emailContent);
     window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_self');
+  };
+
+  const handleEmail = async () => {
+    if (!employee) return;
+
+    // Get employee's login email from profiles
+    let email: string | null = null;
+    if (employee.user_id) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('user_id', employee.user_id)
+        .maybeSingle();
+      email = profile?.email || null;
+    }
+
+    if (!email) {
+      toast.error('Kein E-Mail für diesen Mitarbeiter hinterlegt');
+      return;
+    }
+
+    const emailContent = buildEmailContent();
+
+    // Try server-side email first
+    setSendingEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-monthly-report', {
+        body: {
+          employeeId: selectedEmployee,
+          month: selectedMonth,
+          year: selectedYear,
+          emailContent,
+          recipientEmail: email,
+          subject: `Monatsabrechnung ${monthNames[selectedMonth - 1]} ${selectedYear} – ${employee.first_name} ${employee.last_name}`,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast.success(`E-Mail an ${email} gesendet`);
+    } catch (err: any) {
+      console.error('[Validation] handleEmail edge function failed', err);
+      // Fallback to mailto
+      toast.info('E-Mail-Client wird geöffnet als Fallback');
+      openMailto(email, emailContent);
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
+  const handleMailto = async () => {
+    if (!employee) return;
+
+    let email: string | null = null;
+    if (employee.user_id) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('user_id', employee.user_id)
+        .maybeSingle();
+      email = profile?.email || null;
+    }
+
+    if (!email) {
+      toast.error('Kein E-Mail für diesen Mitarbeiter hinterlegt');
+      return;
+    }
+
+    openMailto(email, buildEmailContent());
     toast.success(`E-Mail an ${email} wird vorbereitet`);
   };
 
@@ -211,9 +291,13 @@ export default function Validation() {
               <Printer className="h-4 w-4" />
               Drucken
             </Button>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={handleEmail}>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={handleEmail} disabled={sendingEmail}>
+              {sendingEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              E-Mail senden
+            </Button>
+            <Button variant="ghost" size="sm" className="gap-1.5" onClick={handleMailto}>
               <Mail className="h-4 w-4" />
-              E-Mail
+              mailto
             </Button>
           </div>
         </div>
@@ -239,7 +323,7 @@ export default function Validation() {
           <Select value={String(selectedYear)} onValueChange={v => setSelectedYear(parseInt(v))}>
             <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {[2025, 2026, 2027].map(y => (
+              {years.map(y => (
                 <SelectItem key={y} value={String(y)}>{y}</SelectItem>
               ))}
             </SelectContent>

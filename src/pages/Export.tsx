@@ -220,7 +220,7 @@ export default function ExportPage() {
             <Select value={String(selectedYear)} onValueChange={v => setSelectedYear(parseInt(v))}>
               <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {[2025, 2026, 2027].map(y => (
+                {getYearOptions().map(y => (
                   <SelectItem key={y} value={String(y)}>{y}</SelectItem>
                 ))}
               </SelectContent>
