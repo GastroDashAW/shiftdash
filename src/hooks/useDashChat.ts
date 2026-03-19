@@ -1,10 +1,11 @@
 import { useState, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { backendPublishableKey, backendUrl } from '@/lib/backend-config';
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/dash-chat`;
+const CHAT_URL = `${backendUrl}/functions/v1/dash-chat`;
 
 export function useDashChat() {
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -35,7 +36,7 @@ export function useDashChat() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${backendPublishableKey}`,
         },
         body: JSON.stringify({
           messages: allMessages,
