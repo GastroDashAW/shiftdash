@@ -2,3 +2,9 @@ project_id = "irgtersdrvgusiqeqwsy"
 
 [functions.dash-chat]
 verify_jwt = false
+
+[functions.send-monthly-report]
+verify_jwt = false
+
+[functions.reset-data]
+verify_jwt = false
