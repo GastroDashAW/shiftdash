@@ -9,6 +9,7 @@ import { FileDown, FileText, FileSpreadsheet, Trash2, Download } from 'lucide-re
 import { formatHoursMinutes, formatTime, calculateMonthlyTargetHours, calculateHourlySurcharges } from '@/lib/lgav';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { getYearOptions } from '@/lib/date';
 
 const monthNames = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
@@ -219,7 +220,7 @@ export default function ExportPage() {
             <Select value={String(selectedYear)} onValueChange={v => setSelectedYear(parseInt(v))}>
               <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {[2025, 2026, 2027].map(y => (
+                {getYearOptions().map(y => (
                   <SelectItem key={y} value={String(y)}>{y}</SelectItem>
                 ))}
               </SelectContent>

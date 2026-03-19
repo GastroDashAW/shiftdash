@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -10,6 +11,7 @@ export default function Settings() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleReset = async () => {
     setLoading(true);
@@ -20,8 +22,10 @@ export default function Settings() {
 
       toast({ title: 'Daten zurückgesetzt', description: 'Alle Tabellen wurden geleert.' });
       setOpen(false);
+      navigate('/admin');
     } catch (err: any) {
-      toast({ title: 'Fehler', description: err.message, variant: 'destructive' });
+      console.error('[Settings] handleReset', err);
+      toast({ title: 'Fehler', description: err.message || 'Unbekannter Fehler', variant: 'destructive' });
     } finally {
       setLoading(false);
     }

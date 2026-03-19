@@ -10,9 +10,44 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Line, ComposedChart } from 'recharts';
 import { TrendingUp, TrendingDown, DollarSign, Percent, Save, Receipt } from 'lucide-react';
+import { getEndOfMonthString } from '@/lib/date';
 
 const WEEKDAY_LABELS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const DEFAULT_VAT_RATE = 8.1;
+
+interface BudgetEmployee {
+  id: string;
+  first_name: string;
+  last_name: string;
+  employee_type: 'fixed' | 'hourly';
+  hourly_rate: number | null;
+  weekly_hours: number | null;
+  vacation_surcharge_percent: number | null;
+  holiday_surcharge_percent: number | null;
+}
+
+interface BudgetAssignment {
+  id: string;
+  employee_id: string;
+  date: string;
+  shift_type_id: string;
+}
+
+interface BudgetShiftType {
+  id: string;
+  name: string;
+  short_code: string;
+  color: string;
+  start_time: string | null;
+  end_time: string | null;
+  cost_center: string;
+}
+
+interface BudgetBusinessSettings {
+  closed_days: number[] | null;
+  auto_sync_schedule: boolean | null;
+  social_charges_percent: number | null;
+}
 
 export default function Budget() {
   const now = new Date();
@@ -22,10 +57,10 @@ export default function Budget() {
   const [distributionMode, setDistributionMode] = useState<'linear' | 'weighted'>('linear');
   const [dayWeights, setDayWeights] = useState<Record<string, number>>({ Mo: 1, Di: 1, Mi: 1, Do: 1, Fr: 1.3, Sa: 1.5, So: 0.7 });
   const [budgetId, setBudgetId] = useState<string | null>(null);
-  const [employees, setEmployees] = useState<any[]>([]);
-  const [assignments, setAssignments] = useState<any[]>([]);
-  const [shiftTypes, setShiftTypes] = useState<any[]>([]);
-  const [businessSettings, setBusinessSettings] = useState<any>(null);
+  const [employees, setEmployees] = useState<BudgetEmployee[]>([]);
+  const [assignments, setAssignments] = useState<BudgetAssignment[]>([]);
+  const [shiftTypes, setShiftTypes] = useState<BudgetShiftType[]>([]);
+  const [businessSettings, setBusinessSettings] = useState<BudgetBusinessSettings | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Actual daily revenues
@@ -48,11 +83,11 @@ export default function Budget() {
         supabase.from('business_settings').select('*').limit(1).maybeSingle(),
       ]);
 
-      const biz = bizRes.data || null;
+      const biz = bizRes.data as BudgetBusinessSettings | null;
       setBusinessSettings(biz);
 
       // Build default weights from business closed_days
-      const closedDays: number[] = Array.isArray(biz?.closed_days) ? (biz.closed_days as any[]).map(Number) : [];
+      const closedDays: number[] = Array.isArray(biz?.closed_days) ? (biz.closed_days as number[]).map(Number) : [];
       const defaultWeights: Record<string, number> = { Mo: 1, Di: 1, Mi: 1, Do: 1, Fr: 1.3, Sa: 1.5, So: 0.7 };
       for (const idx of closedDays) {
         const label = dayIndexToLabel[idx];
@@ -61,12 +96,10 @@ export default function Budget() {
 
       if (budgetRes.data) {
         setTotalRevenue(budgetRes.data.total_revenue || 0);
-        setDistributionMode(budgetRes.data.distribution_mode as any || 'linear');
+        setDistributionMode((budgetRes.data.distribution_mode as 'linear' | 'weighted') || 'linear');
         if (budgetRes.data.day_weights && typeof budgetRes.data.day_weights === 'object') {
-          // Merge: saved weights override defaults, but apply closed=0 on top
           const saved = budgetRes.data.day_weights as Record<string, number>;
           const merged = { ...defaultWeights, ...saved };
-          // Force closed days to 0
           for (const idx of closedDays) {
             const label = dayIndexToLabel[idx];
             if (label) merged[label] = 0;
@@ -82,21 +115,21 @@ export default function Budget() {
         setDayWeights(defaultWeights);
       }
 
-      setEmployees(empRes.data || []);
-      setShiftTypes(shiftRes.data || []);
+      setEmployees((empRes.data || []) as BudgetEmployee[]);
+      setShiftTypes((shiftRes.data || []) as BudgetShiftType[]);
     };
     load();
 
     // Load assignments
     const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-    const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+    const endDate = getEndOfMonthString(year, month);
     supabase.from('schedule_assignments').select('*').gte('date', startDate).lte('date', endDate)
-      .then(({ data }) => setAssignments(data || []));
+      .then(({ data }) => setAssignments((data || []) as BudgetAssignment[]));
 
     // Load actual daily revenues
     supabase.from('daily_revenues').select('*')
       .gte('date', `${year}-${String(month).padStart(2, '0')}-01`)
-      .lte('date', new Date(year, month, 0).toISOString().split('T')[0])
+      .lte('date', getEndOfMonthString(year, month))
       .then(({ data }) => {
         const map: Record<string, { id: string; revenue_gross: number; vat_rate: number }> = {};
         (data || []).forEach(r => {
@@ -178,7 +211,6 @@ export default function Budget() {
       const cost = dailyCosts[d] || 0;
       const actualNet = getActualNet(d);
       const actualGross = getActualGross(d);
-      const useRev = actualNet > 0 ? actualNet : budgetRev;
       data.push({
         day: d,
         budget: Math.round(budgetRev),
@@ -200,15 +232,23 @@ export default function Budget() {
 
   const handleSave = async () => {
     setSaving(true);
-    const payload = { year, month, total_revenue: totalRevenue, distribution_mode: distributionMode, day_weights: dayWeights };
-    if (budgetId) {
-      await supabase.from('monthly_budgets').update(payload).eq('id', budgetId);
-    } else {
-      const { data } = await supabase.from('monthly_budgets').insert(payload).select().single();
-      if (data) setBudgetId(data.id);
+    try {
+      const payload = { year, month, total_revenue: totalRevenue, distribution_mode: distributionMode, day_weights: dayWeights };
+      if (budgetId) {
+        const { error } = await supabase.from('monthly_budgets').update(payload).eq('id', budgetId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from('monthly_budgets').insert(payload).select().single();
+        if (error) throw error;
+        if (data) setBudgetId(data.id);
+      }
+      toast.success('Budget gespeichert');
+    } catch (err: any) {
+      console.error('[Budget] handleSave', err);
+      toast.error('Fehler: ' + (err.message || 'Unbekannter Fehler'));
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    toast.success('Budget gespeichert');
   };
 
   const handleSetActualRevenue = (day: number, value: number, isNet: boolean) => {
@@ -224,19 +264,27 @@ export default function Budget() {
 
   const handleSaveRevenues = async () => {
     setSavingRevenues(true);
-    const entries = Object.entries(actualRevenues).filter(([, v]) => v.revenue_gross > 0);
-    for (const [date, entry] of entries) {
-      if (entry.id) {
-        await supabase.from('daily_revenues').update({ revenue_gross: entry.revenue_gross, vat_rate: entry.vat_rate }).eq('id', entry.id);
-      } else {
-        const { data } = await supabase.from('daily_revenues').insert({ date, revenue_gross: entry.revenue_gross, vat_rate: entry.vat_rate }).select().single();
-        if (data) {
-          setActualRevenues(prev => ({ ...prev, [date]: { ...prev[date], id: data.id } }));
+    try {
+      const entries = Object.entries(actualRevenues).filter(([, v]) => v.revenue_gross > 0);
+      for (const [date, entry] of entries) {
+        if (entry.id) {
+          const { error } = await supabase.from('daily_revenues').update({ revenue_gross: entry.revenue_gross, vat_rate: entry.vat_rate }).eq('id', entry.id);
+          if (error) throw error;
+        } else {
+          const { data, error } = await supabase.from('daily_revenues').insert({ date, revenue_gross: entry.revenue_gross, vat_rate: entry.vat_rate }).select().single();
+          if (error) throw error;
+          if (data) {
+            setActualRevenues(prev => ({ ...prev, [date]: { ...prev[date], id: data.id } }));
+          }
         }
       }
+      toast.success('Tagesumsätze gespeichert');
+    } catch (err: any) {
+      console.error('[Budget] handleSaveRevenues', err);
+      toast.error('Fehler: ' + (err.message || 'Unbekannter Fehler'));
+    } finally {
+      setSavingRevenues(false);
     }
-    setSavingRevenues(false);
-    toast.success('Tagesumsätze gespeichert');
   };
 
   const monthNames = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
@@ -320,7 +368,7 @@ export default function Budget() {
             </div>
             <div className="space-y-2">
               <Label>Verteilung</Label>
-              <Select value={distributionMode} onValueChange={v => setDistributionMode(v as any)}>
+              <Select value={distributionMode} onValueChange={v => setDistributionMode(v as 'linear' | 'weighted')}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="linear">Linear (gleichmässig)</SelectItem>
@@ -330,7 +378,7 @@ export default function Budget() {
             </div>
           </div>
           {distributionMode === 'weighted' && (() => {
-            const closedDays: number[] = Array.isArray(businessSettings?.closed_days) ? (businessSettings.closed_days as any[]).map(Number) : [];
+            const closedDays: number[] = Array.isArray(businessSettings?.closed_days) ? (businessSettings!.closed_days as number[]).map(Number) : [];
             const closedLabels = new Set(closedDays.map(idx => dayIndexToLabel[idx]).filter(Boolean));
             return (
             <div className="space-y-2">
