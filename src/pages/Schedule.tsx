@@ -523,7 +523,7 @@ export default function Schedule() {
         shiftCostCenter.set(st.id, st.cost_center || '');
       }
 
-      // 7. Save snapshot for undo, then handle existing assignments
+      // 7. Save snapshot for undo, then clear all existing assignments in range
       const { data: existingAssignments } = await supabase
         .from('schedule_assignments')
         .select('employee_id, date, shift_type_id')
@@ -535,38 +535,18 @@ export default function Schedule() {
         endDate: endDateStr,
       });
 
-      // Build set of manually assigned employee-date combos to preserve
-      // Manual = any existing assignment that is NOT a "Frei" (F) auto-fill
-      const manualAssignments = new Set<string>();
-      const manualAssignmentRows: { employee_id: string; date: string; shift_type_id: string }[] = [];
-      for (const a of existingAssignments || []) {
-        const key = `${a.employee_id}-${a.date}`;
-        // Preserve all existing non-Frei assignments as manual
-        const isFreiShift = freiShift && a.shift_type_id === freiShift.id;
-        if (!isFreiShift) {
-          manualAssignments.add(key);
-          manualAssignmentRows.push({ employee_id: a.employee_id, date: a.date, shift_type_id: a.shift_type_id });
-        }
-      }
-
-      // Delete only non-manual assignments (Frei entries and unassigned slots)
+      // Delete ALL existing assignments in the range for a clean regeneration
       await supabase
         .from('schedule_assignments')
         .delete()
         .gte('date', startDateStr)
         .lte('date', endDateStr);
 
-      // 8. Generate assignments day by day
+      // 8. Generate assignments day by day (fresh, strictly from config)
       const newAssignments: { employee_id: string; date: string; shift_type_id: string }[] = [];
-      // Re-insert all manual assignments first
-      newAssignments.push(...manualAssignmentRows);
 
       const employeeShiftCount: Record<string, number> = {};
       for (const emp of employees) employeeShiftCount[emp.id] = 0;
-      // Count manual assignments toward shift counts
-      for (const a of manualAssignmentRows) {
-        employeeShiftCount[a.employee_id] = (employeeShiftCount[a.employee_id] || 0) + 1;
-      }
 
       const workShiftIds = Object.keys(configMap);
 
