@@ -16,7 +16,8 @@ interface ScheduleGenerateDialogProps {
 
 export function ScheduleGenerateDialog({ onGenerate, generating, defaultMonth }: ScheduleGenerateDialogProps) {
   const [open, setOpen] = useState(false);
-  // Default: first and last of displayed month
+  const [startOpen, setStartOpen] = useState(false);
+  const [endOpen, setEndOpen] = useState(false);
   const defaultStart = new Date(defaultMonth.getFullYear(), defaultMonth.getMonth(), 1);
   const defaultEnd = new Date(defaultMonth.getFullYear(), defaultMonth.getMonth() + 1, 0);
   const [startDate, setStartDate] = useState<Date>(defaultStart);
