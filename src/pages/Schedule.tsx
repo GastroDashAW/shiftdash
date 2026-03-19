@@ -81,6 +81,7 @@ export default function Schedule() {
   const [editingEventDay, setEditingEventDay] = useState<number | null>(null);
   const [eventText, setEventText] = useState('');
   const [mobileTooltip, setMobileTooltip] = useState<{ empId: string; day: number } | null>(null);
+  const [showLegend, setShowLegend] = useState(true);
 
   // Admin: set of visible cost centers; Employee: view mode
   const [hiddenCostCenters, setHiddenCostCenters] = useState<Set<string>>(new Set());
