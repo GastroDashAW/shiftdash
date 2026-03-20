@@ -4,197 +4,321 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
-import loginBg from '@/assets/login-bg.png';
+import { motion, AnimatePresence } from 'framer-motion';
 import { BRANDING } from '@/config/branding';
 import { StagingBanner } from '@/components/StagingBanner';
-import { DashWelcome } from '@/components/dash/DashWelcome';
-import { Lock, Mail } from 'lucide-react';
+import { DashChatWidget } from '@/components/dash/DashChatWidget';
+import { CalendarDays, Users, Clock, TrendingUp, ArrowRight, X, Lock, Mail, User } from 'lucide-react';
+import dashAvatar from '@/assets/dash-avatar.png';
 
-export function AuthPage() {
+const HERO_IMG = 'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=1400&q=80';
+
+const FEATURES = [
+  {
+    icon: CalendarDays,
+    title: 'Dienstplan & Schichtplanung',
+    desc: 'Plane Schichten per Drag & Drop, erkenne L-GAV Verstösse automatisch und drucke den Monatsplan.',
+    img: 'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=800&q=80',
+    fallback: 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=800&q=80',
+  },
+  {
+    icon: Users,
+    title: 'Mitarbeiter & Logins',
+    desc: 'Erfasse Mitarbeiter mit Pensum, Lohn und Verfügbarkeit. Erstelle Logins direkt in der App.',
+    img: 'https://images.unsplash.com/photo-1559329007-40df8a9345d8?w=800&q=80',
+    fallback: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&q=80',
+  },
+  {
+    icon: Clock,
+    title: 'Zeiterfassung & Validierung',
+    desc: 'Mitarbeiter stempeln per Handy ein und aus. Du validierst den Monatsrapport mit einem Klick.',
+    img: 'https://images.unsplash.com/photo-1556745757-8d76bdb6984b?w=800&q=80',
+    fallback: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=800&q=80',
+  },
+  {
+    icon: TrendingUp,
+    title: 'Budget & Wareneinsatz',
+    desc: 'Vergleiche Personalkosten mit dem Tagesumsatz. Erkenne sofort wo die Marge unter Druck gerät.',
+    img: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&q=80',
+    fallback: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80',
+  },
+];
+
+const DASH_QUESTIONS = [
+  'Was kann ShiftDash?',
+  'Wie funktioniert der Dienstplan?',
+  'Für wen ist ShiftDash gedacht?',
+  'Wie stempeln Mitarbeiter ein?',
+];
+
+function AuthModal({ onClose }: { onClose: () => void }) {
+  const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await signIn(email, password);
-    if (error) toast.error('Login fehlgeschlagen: ' + error.message);
+    if (mode === 'login') {
+      const { error } = await signIn(email, password);
+      if (error) toast.error('Login fehlgeschlagen: ' + error.message);
+    } else {
+      const { error } = await signUp(email, password, fullName);
+      if (error) toast.error('Registrierung fehlgeschlagen: ' + error.message);
+      else toast.success('Registrierung erfolgreich! Bitte bestätige deine E-Mail.');
+    }
     setLoading(false);
   };
 
   return (
+    <motion.div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div
+        className="relative w-full max-w-md rounded-2xl border bg-card p-6 shadow-xl sm:p-8"
+        initial={{ opacity: 0, scale: 0.92, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.92, y: 20 }}
+        transition={{ duration: 0.3 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute right-4 top-4 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        <div className="mb-6 flex flex-col items-center gap-3">
+          <img
+            alt={BRANDING.appName}
+            className="h-16 w-16 rounded-2xl object-contain"
+            src="/lovable-uploads/cde71f63-3f75-4ef9-a554-8c54ff83e493.png"
+          />
+          <h2 className="font-heading text-2xl font-bold text-foreground">{BRANDING.appName}</h2>
+          <p className="text-sm text-muted-foreground">{BRANDING.tagline}</p>
+        </div>
+
+        {/* Tabs */}
+        <div className="mb-5 flex rounded-lg border bg-muted p-1">
+          <button
+            onClick={() => setMode('login')}
+            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${mode === 'login' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Anmelden
+          </button>
+          <button
+            onClick={() => setMode('register')}
+            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${mode === 'register' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Registrieren
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === 'register' && (
+            <div className="space-y-1.5">
+              <Label htmlFor="fullName" className="text-xs font-medium">Name</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input id="fullName" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Max Muster" className="pl-9 h-11" required />
+              </div>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-xs font-medium">E-Mail</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="max@restaurant.ch" className="pl-9 h-11" required />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-xs font-medium">Passwort</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="pl-9 h-11" required minLength={6} />
+            </div>
+          </div>
+          <Button type="submit" className="w-full h-11 text-sm font-semibold" disabled={loading}>
+            {loading ? 'Laden...' : mode === 'login' ? 'Anmelden' : 'Registrieren'}
+          </Button>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+export function AuthPage() {
+  const [showAuth, setShowAuth] = useState(false);
+
+  return (
     <div className="flex min-h-[100dvh] flex-col bg-background">
       <StagingBanner />
-      <div className="flex flex-1 flex-col lg:flex-row">
-        {/* Left – hero image (desktop only) */}
-        <motion.div
-          className="relative hidden lg:flex lg:w-[55%] items-end"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8 }}
-        >
-          <img
-            src={loginBg}
-            alt="Restaurant-Team bei der Zeiterfassung"
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/30 to-transparent" />
-          <div className="relative z-10 p-10 pb-14 max-w-lg">
-            <motion.h2
-              className="font-heading text-4xl font-bold text-white leading-tight"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.6 }}
-            >
-              Personalplanung,{' '}
-              <span className="text-primary-foreground/90">die mitdenkt.</span>
-            </motion.h2>
-            <motion.p
-              className="mt-3 text-sm text-white/70"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5, duration: 0.6 }}
-            >
-              Zeiterfassung, Dienstplanung & L-GAV-Konformität für die Schweizer Gastronomie.
-            </motion.p>
-          </div>
-        </motion.div>
 
-        {/* Right – login panel */}
-        <div className="flex flex-1 flex-col lg:w-[45%]">
-          {/* Mobile hero strip */}
-          <div className="relative h-44 overflow-hidden lg:hidden">
+      {/* Top Bar */}
+      <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur-md">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
+          <div className="flex items-center gap-2.5">
             <img
-              src={loginBg}
-              alt="Restaurant"
-              className="absolute inset-0 h-full w-full object-cover"
+              src="/lovable-uploads/cde71f63-3f75-4ef9-a554-8c54ff83e493.png"
+              alt={BRANDING.appName}
+              className="h-8 w-8 rounded-lg object-contain"
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 to-background" />
-            <motion.div
-              className="relative z-10 flex h-full flex-col items-center justify-end pb-6"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <img
-                alt={BRANDING.appName}
-                className="h-16 w-16 rounded-2xl object-contain shadow-lg"
-                src="/lovable-uploads/cde71f63-3f75-4ef9-a554-8c54ff83e493.png"
-              />
-            </motion.div>
+            <span className="font-heading text-lg font-bold text-foreground">{BRANDING.appName}</span>
           </div>
-
-          {/* Content area */}
-          <div className="flex flex-1 flex-col items-center justify-center px-6 py-8 sm:px-10 lg:px-16">
-            {/* Desktop logo + branding */}
-            <motion.div
-              className="mb-8 hidden flex-col items-center gap-3 lg:flex"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
-            >
-              <img
-                alt={BRANDING.appName}
-                className="h-20 w-20 rounded-2xl object-contain"
-                src="/lovable-uploads/cde71f63-3f75-4ef9-a554-8c54ff83e493.png"
-              />
-              <h1 className="font-heading text-3xl font-bold tracking-tight text-foreground">
-                {BRANDING.appName}
-              </h1>
-              <p className="text-sm text-muted-foreground">{BRANDING.tagline}</p>
-            </motion.div>
-
-            {/* Mobile branding */}
-            <motion.div
-              className="mb-6 flex flex-col items-center gap-1 lg:hidden"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.15, duration: 0.4 }}
-            >
-              <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-                {BRANDING.appName}
-              </h1>
-              <p className="text-xs text-muted-foreground">{BRANDING.tagline}</p>
-            </motion.div>
-
-            {/* Login form card */}
-            <motion.div
-              className="w-full max-w-sm"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.5 }}
-            >
-              <div className="rounded-xl border bg-card p-5 shadow-sm sm:p-6">
-                <h2 className="mb-4 text-center font-heading text-lg font-semibold text-foreground">
-                  Willkommen zurück
-                </h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="email" className="text-xs font-medium">
-                      E-Mail
-                    </Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="max@restaurant.ch"
-                        className="pl-9 h-11"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="password" className="text-xs font-medium">
-                      Passwort
-                    </Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        id="password"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="pl-9 h-11"
-                        required
-                        minLength={6}
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full h-11 text-sm font-semibold"
-                    disabled={loading}
-                  >
-                    {loading ? 'Laden...' : 'Anmelden'}
-                  </Button>
-                </form>
-              </div>
-            </motion.div>
-
-            {/* Dash assistant */}
-            <motion.div
-              className="mt-6 w-full max-w-sm"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.5 }}
-            >
-              <DashWelcome />
-            </motion.div>
-
-            {/* Footer */}
-            <p className="mt-8 text-center text-[11px] text-muted-foreground/50">
-              Personalmanagement & Zeiterfassung für die Schweizer Gastronomie
-            </p>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="rounded-full border-accent text-accent hover:bg-accent hover:text-accent-foreground text-xs">
+              Preise &amp; Abos
+            </Button>
+            <Button size="sm" className="rounded-full text-xs" onClick={() => setShowAuth(true)}>
+              Anmelden
+            </Button>
           </div>
         </div>
-      </div>
+      </header>
+
+      {/* Hero */}
+      <section className="relative overflow-hidden">
+        <div className="relative h-[50vh] min-h-[340px] sm:h-[56vh] md:h-[60vh]">
+          <img
+            src={HERO_IMG}
+            alt="Gastronomie-Team"
+            className="absolute inset-0 h-full w-full object-cover"
+            crossOrigin="anonymous"
+            loading="eager"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1400&q=80';
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-foreground/75 via-foreground/30 to-transparent" />
+
+          <motion.div
+            className="absolute bottom-0 left-0 z-10 p-6 sm:p-10 md:p-14 max-w-2xl"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.15 }}
+          >
+            <img
+              src="/lovable-uploads/cde71f63-3f75-4ef9-a554-8c54ff83e493.png"
+              alt={BRANDING.appName}
+              className="mb-4 h-16 w-16 rounded-2xl object-contain shadow-lg sm:h-20 sm:w-20"
+            />
+            <h1 className="font-heading text-3xl font-bold leading-tight text-primary-foreground sm:text-4xl md:text-5xl" style={{ lineHeight: 1.1 }}>
+              {BRANDING.appName}
+            </h1>
+            <p className="mt-2 text-sm text-primary-foreground/80 sm:text-base md:text-lg">
+              Die smarte Personalplanung für die Schweizer Gastronomie.
+            </p>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Feature Tiles */}
+      <section className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-14 md:py-16">
+        <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 md:gap-6">
+          {FEATURES.map((f, i) => {
+            const Icon = f.icon;
+            return (
+              <motion.div
+                key={f.title}
+                className="group relative overflow-hidden rounded-xl border bg-card shadow-sm transition-shadow hover:shadow-md"
+                initial={{ opacity: 0, y: 18 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{ duration: 0.5, delay: i * 0.08 }}
+              >
+                <div className="relative h-36 overflow-hidden">
+                  <img
+                    src={f.img}
+                    alt={f.title}
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    crossOrigin="anonymous"
+                    loading="lazy"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = f.fallback;
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-foreground/30 to-transparent" />
+                </div>
+                <div className="p-4 sm:p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-heading text-base font-semibold text-foreground">{f.title}</h3>
+                      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
+                    </div>
+                    <ArrowRight className="mt-1 h-4 w-4 flex-shrink-0 text-muted-foreground/40 transition-all duration-300 group-hover:translate-x-1 group-hover:text-primary" />
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Dash Welcome Card */}
+      <section className="mx-auto w-full max-w-7xl px-4 pb-10 sm:px-6 sm:pb-14">
+        <motion.div
+          className="rounded-xl border bg-card p-5 shadow-sm sm:p-6"
+          initial={{ opacity: 0, y: 18 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
+            <img
+              src={dashAvatar}
+              alt="Dash Assistent"
+              className="h-16 w-16 flex-shrink-0 rounded-2xl object-contain sm:h-20 sm:w-20"
+            />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-heading text-lg font-bold text-foreground">Hallo! Ich bin Dash.</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Dein Assistent für ShiftDash – ich helfe dir beim Einstieg und beantworte alle Fragen.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {DASH_QUESTIONS.map(q => (
+                  <button
+                    key={q}
+                    className="rounded-full border bg-background px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground active:scale-[0.97]"
+                    onClick={() => {
+                      // Open DashChatWidget with pre-filled question
+                      // For now, trigger a simple alert – the floating widget handles the chat
+                      toast.info(`Klicke auf den Dash-Button unten rechts und stelle die Frage: "${q}"`);
+                    }}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t bg-card/50 py-6">
+        <p className="text-center text-xs text-muted-foreground">
+          © {new Date().getFullYear()} {BRANDING.appName} – Entwickelt für die Schweizer Gastronomie
+        </p>
+      </footer>
+
+      {/* Auth Modal */}
+      <AnimatePresence>
+        {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      </AnimatePresence>
+
+      {/* Dash Chat Widget on landing */}
+      <DashChatWidget />
     </div>
   );
 }
