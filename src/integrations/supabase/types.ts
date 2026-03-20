@@ -26,6 +26,8 @@ export type Database = {
           opening_days: string | null
           opening_hours: string | null
           phone: string | null
+          push_reminders_enabled: boolean | null
+          reminder_minutes_before: number | null
           shifts_per_day: Json | null
           social_charges_percent: number | null
           updated_at: string
@@ -43,6 +45,8 @@ export type Database = {
           opening_days?: string | null
           opening_hours?: string | null
           phone?: string | null
+          push_reminders_enabled?: boolean | null
+          reminder_minutes_before?: number | null
           shifts_per_day?: Json | null
           social_charges_percent?: number | null
           updated_at?: string
@@ -60,6 +64,8 @@ export type Database = {
           opening_days?: string | null
           opening_hours?: string | null
           phone?: string | null
+          push_reminders_enabled?: boolean | null
+          reminder_minutes_before?: number | null
           shifts_per_day?: Json | null
           social_charges_percent?: number | null
           updated_at?: string
@@ -439,6 +445,44 @@ export type Database = {
           },
         ]
       }
+      notifications_log: {
+        Row: {
+          body: string | null
+          employee_id: string
+          id: string
+          notification_type: string
+          sent_at: string
+          status: string
+          title: string
+        }
+        Insert: {
+          body?: string | null
+          employee_id: string
+          id?: string
+          notification_type: string
+          sent_at?: string
+          status?: string
+          title: string
+        }
+        Update: {
+          body?: string | null
+          employee_id?: string
+          id?: string
+          notification_type?: string
+          sent_at?: string
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       overtime_verifications: {
         Row: {
           actual_clock_out: string
@@ -522,6 +566,38 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          subscription: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          subscription: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          subscription?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       schedule_archives: {
         Row: {
