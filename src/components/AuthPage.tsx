@@ -10,8 +10,7 @@ import { StagingBanner } from '@/components/StagingBanner';
 import { DashChatWidget } from '@/components/dash/DashChatWidget';
 import { CalendarDays, Users, Clock, TrendingUp, ArrowRight, X, Lock, Mail, User } from 'lucide-react';
 import dashAvatar from '@/assets/dash-avatar.png';
-
-const HERO_IMG = 'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=1400&q=80';
+import loginBg from '@/assets/login-bg.png';
 
 const FEATURES = [
   {
