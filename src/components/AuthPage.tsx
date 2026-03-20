@@ -10,8 +10,7 @@ import { StagingBanner } from '@/components/StagingBanner';
 import { DashChatWidget } from '@/components/dash/DashChatWidget';
 import { CalendarDays, Users, Clock, TrendingUp, ArrowRight, X, Lock, Mail, User } from 'lucide-react';
 import dashAvatar from '@/assets/dash-avatar.png';
-
-const HERO_IMG = 'https://images.unsplash.com/photo-1551218808-94e220e084d2?w=1400&q=80';
+import loginBg from '@/assets/login-bg.png';
 
 const FEATURES = [
   {
@@ -188,7 +187,7 @@ export function AuthPage() {
       <section className="relative overflow-hidden">
         <div className="relative h-[50vh] min-h-[340px] sm:h-[56vh] md:h-[60vh]">
           <img
-            src={HERO_IMG}
+            src={loginBg}
             alt="Gastronomie-Team"
             className="absolute inset-0 h-full w-full object-cover"
             crossOrigin="anonymous"
