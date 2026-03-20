@@ -52,11 +52,13 @@ const DASH_QUESTIONS = [
 ];
 
 function AuthModal({ onClose }: { onClose: () => void }) {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState('');
   const { signIn, signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,10 +67,26 @@ function AuthModal({ onClose }: { onClose: () => void }) {
     if (mode === 'login') {
       const { error } = await signIn(email, password);
       if (error) toast.error('Login fehlgeschlagen: ' + error.message);
-    } else {
+    } else if (mode === 'register') {
       const { error } = await signUp(email, password, fullName);
       if (error) toast.error('Registrierung fehlgeschlagen: ' + error.message);
       else toast.success('Registrierung erfolgreich! Bitte bestätige deine E-Mail.');
+    }
+    setLoading(false);
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setResetError('');
+    setResetSent(false);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) {
+      setResetError(error.message);
+    } else {
+      setResetSent(true);
     }
     setLoading(false);
   };
@@ -106,50 +124,103 @@ function AuthModal({ onClose }: { onClose: () => void }) {
           <p className="text-sm text-muted-foreground">{BRANDING.tagline}</p>
         </div>
 
-        {/* Tabs */}
-        <div className="mb-5 flex rounded-lg border bg-muted p-1">
-          <button
-            onClick={() => setMode('login')}
-            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${mode === 'login' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            Anmelden
-          </button>
-          <button
-            onClick={() => setMode('register')}
-            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${mode === 'register' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            Registrieren
-          </button>
-        </div>
+        {mode === 'forgot' ? (
+          /* Forgot Password View */
+          <div>
+            <button
+              onClick={() => { setMode('login'); setResetSent(false); setResetError(''); }}
+              className="mb-4 flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Zurück zur Anmeldung
+            </button>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === 'register' && (
-            <div className="space-y-1.5">
-              <Label htmlFor="fullName" className="text-xs font-medium">Name</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input id="fullName" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Max Muster" className="pl-9 h-11" required />
+            <h3 className="font-heading text-lg font-semibold text-foreground">Passwort zurücksetzen</h3>
+            <p className="mt-1 mb-5 text-sm text-muted-foreground">
+              Gib deine E-Mail-Adresse ein. Du erhältst einen Link zum Zurücksetzen.
+            </p>
+
+            {resetSent ? (
+              <div className="rounded-lg bg-success/10 border border-success/20 p-4 text-sm text-success">
+                E-Mail wurde gesendet! Prüfe dein Postfach.
               </div>
-            </div>
-          )}
-          <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-xs font-medium">E-Mail</Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="max@restaurant.ch" className="pl-9 h-11" required />
-            </div>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="reset-email" className="text-xs font-medium">E-Mail</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input id="reset-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="max@restaurant.ch" className="pl-9 h-11" required />
+                  </div>
+                </div>
+                {resetError && (
+                  <p className="text-sm text-destructive">{resetError}</p>
+                )}
+                <Button type="submit" className="w-full h-11 text-sm font-semibold" disabled={loading}>
+                  {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Senden...</> : 'Link senden'}
+                </Button>
+              </form>
+            )}
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="password" className="text-xs font-medium">Passwort</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="pl-9 h-11" required minLength={6} />
+        ) : (
+          /* Login / Register View */
+          <>
+            <div className="mb-5 flex rounded-lg border bg-muted p-1">
+              <button
+                onClick={() => setMode('login')}
+                className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${mode === 'login' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Anmelden
+              </button>
+              <button
+                onClick={() => setMode('register')}
+                className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${mode === 'register' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Registrieren
+              </button>
             </div>
-          </div>
-          <Button type="submit" className="w-full h-11 text-sm font-semibold" disabled={loading}>
-            {loading ? 'Laden...' : mode === 'login' ? 'Anmelden' : 'Registrieren'}
-          </Button>
-        </form>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {mode === 'register' && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="fullName" className="text-xs font-medium">Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input id="fullName" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Max Muster" className="pl-9 h-11" required />
+                  </div>
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-xs font-medium">E-Mail</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="max@restaurant.ch" className="pl-9 h-11" required />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="password" className="text-xs font-medium">Passwort</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="pl-9 h-11" required minLength={6} />
+                </div>
+              </div>
+              {mode === 'login' && (
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setMode('forgot')}
+                    className="text-xs text-accent hover:underline"
+                  >
+                    Passwort vergessen?
+                  </button>
+                </div>
+              )}
+              <Button type="submit" className="w-full h-11 text-sm font-semibold" disabled={loading}>
+                {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Laden...</> : mode === 'login' ? 'Anmelden' : 'Registrieren'}
+              </Button>
+            </form>
+          </>
+        )}
       </motion.div>
     </motion.div>
   );
