@@ -13,6 +13,8 @@ import { calculateEffectiveHours, checkRestTimeViolation, formatTime, formatHour
 import { useScheduledShift, getAdjustedClockIn, checkOvertimeClockOut } from '@/hooks/useScheduledShift';
 import { Clock, Play, Square, Coffee, AlertTriangle, UserPlus, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ShiftReminderBanner } from '@/components/ShiftReminderBanner';
+import { PushPermissionPrompt } from '@/components/PushPermissionPrompt';
 
 type AbsenceType = 'vacation' | 'sick' | 'accident' | 'holiday' | 'military' | 'other';
 
