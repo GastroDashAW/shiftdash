@@ -8,9 +8,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BRANDING } from '@/config/branding';
 import { StagingBanner } from '@/components/StagingBanner';
 import { DashChatWidget } from '@/components/dash/DashChatWidget';
-import { CalendarDays, Users, Clock, TrendingUp, ArrowRight, X, Lock, Mail, User } from 'lucide-react';
+import { CalendarDays, Users, Clock, TrendingUp, ArrowRight, X, Lock, Mail, User, ArrowLeft, Loader2 } from 'lucide-react';
 import dashAvatar from '@/assets/dash-avatar.png';
 import loginBg from '@/assets/login-bg.png';
+import { supabase } from '@/integrations/supabase/client';
 
 const FEATURES = [
   {
