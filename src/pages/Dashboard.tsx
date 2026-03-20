@@ -13,6 +13,8 @@ import { calculateEffectiveHours, checkRestTimeViolation, formatTime, formatHour
 import { useScheduledShift, getAdjustedClockIn, checkOvertimeClockOut } from '@/hooks/useScheduledShift';
 import { Clock, Play, Square, Coffee, AlertTriangle, UserPlus, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ShiftReminderBanner } from '@/components/ShiftReminderBanner';
+import { PushPermissionPrompt } from '@/components/PushPermissionPrompt';
 
 type AbsenceType = 'vacation' | 'sick' | 'accident' | 'holiday' | 'military' | 'other';
 
@@ -267,6 +269,8 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-4 pb-20 md:pb-4">
+      <ShiftReminderBanner />
+      {!isAdmin && <PushPermissionPrompt />}
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-2xl font-bold">Dashboard</h1>
         {isAdmin && employees.length > 0 && (
