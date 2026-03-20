@@ -1,91 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import webpush from "npm:web-push@3.6.7";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-// Web Push crypto utilities for Deno (no npm dependency)
-async function sendWebPush(subscription: any, payload: string, vapidPublicKey: string, vapidPrivateKey: string) {
-  const endpoint = subscription.endpoint;
-  const p256dh = subscription.keys.p256dh;
-  const auth = subscription.keys.auth;
-
-  // For Deno edge functions, we use the fetch API directly with VAPID headers
-  // Simple approach: use the web push protocol with JWT
-  const audience = new URL(endpoint).origin;
-  const vapidToken = await createVapidToken(audience, 'mailto:info@shiftdash.ch', vapidPrivateKey, vapidPublicKey);
-
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/octet-stream',
-      'Content-Encoding': 'aes128gcm',
-      'TTL': '86400',
-      'Authorization': `vapid t=${vapidToken.token}, k=${vapidPublicKey}`,
-      'Urgency': 'high',
-    },
-    body: await encryptPayload(payload, p256dh, auth),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Push failed: ${response.status} ${text}`);
-  }
-  return response;
-}
-
-async function createVapidToken(audience: string, subject: string, privateKeyBase64: string, publicKeyBase64: string) {
-  const header = { typ: 'JWT', alg: 'ES256' };
-  const now = Math.floor(Date.now() / 1000);
-  const payload = { aud: audience, exp: now + 86400, sub: subject };
-
-  const headerB64 = btoa(JSON.stringify(header)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-  const payloadB64 = btoa(JSON.stringify(payload)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-  const unsigned = `${headerB64}.${payloadB64}`;
-
-  // Import private key
-  const privateKeyBytes = base64UrlToBytes(privateKeyBase64);
-  const publicKeyBytes = base64UrlToBytes(publicKeyBase64);
-
-  // Build JWK
-  const jwk = {
-    kty: 'EC',
-    crv: 'P-256',
-    x: bytesToBase64Url(publicKeyBytes.slice(1, 33)),
-    y: bytesToBase64Url(publicKeyBytes.slice(33, 65)),
-    d: bytesToBase64Url(privateKeyBytes),
-  };
-
-  const key = await crypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
-  const signature = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, new TextEncoder().encode(unsigned));
-
-  const sigBytes = new Uint8Array(signature);
-  const token = `${unsigned}.${bytesToBase64Url(sigBytes)}`;
-  return { token };
-}
-
-function base64UrlToBytes(b64: string): Uint8Array {
-  const padding = '='.repeat((4 - (b64.length % 4)) % 4);
-  const base64 = (b64 + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-
-function bytesToBase64Url(bytes: Uint8Array): string {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-}
-
-async function encryptPayload(payload: string, p256dhKey: string, authSecret: string): Promise<Uint8Array> {
-  // For simplicity with Deno's crypto, send a minimal push
-  // The full encryption requires ECDH + HKDF which is complex
-  // Using a simplified approach: send the payload as-is for browsers that support it
-  return new TextEncoder().encode(payload);
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -97,7 +16,9 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY')!;
     const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')!;
-    
+
+    webpush.setVapidDetails('mailto:info@gastrodash.ch', vapidPublicKey, vapidPrivateKey);
+
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Get Swiss time
@@ -115,9 +36,16 @@ Deno.serve(async (req) => {
     const currentTotalMinutes = currentHour * 60 + currentMinute;
 
     // Check business settings
-    const { data: settings } = await supabase.from('business_settings').select('push_reminders_enabled, reminder_minutes_before').limit(1).single();
+    const { data: settings } = await supabase
+      .from('business_settings')
+      .select('push_reminders_enabled, reminder_minutes_before')
+      .limit(1)
+      .single();
+
     if (!settings?.push_reminders_enabled) {
-      return new Response(JSON.stringify({ message: 'Push reminders disabled' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ message: 'Push reminders disabled' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
     const reminderMinutes = settings.reminder_minutes_before || 5;
 
@@ -128,27 +56,36 @@ Deno.serve(async (req) => {
       .eq('date', today);
 
     if (!assignments?.length) {
-      return new Response(JSON.stringify({ message: 'No assignments today' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ message: 'No assignments today' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const shiftTypeIds = [...new Set(assignments.map(a => a.shift_type_id))];
-    const { data: shiftTypes } = await supabase.from('shift_types').select('id, name, start_time, end_time').in('id', shiftTypeIds);
+    const { data: shiftTypes } = await supabase
+      .from('shift_types')
+      .select('id, name, start_time, end_time')
+      .in('id', shiftTypeIds);
     const shiftMap = new Map((shiftTypes || []).map(s => [s.id, s]));
 
     // Get all subscriptions
     const employeeIds = [...new Set(assignments.map(a => a.employee_id))];
-    const { data: subscriptions } = await supabase.from('push_subscriptions').select('employee_id, subscription').in('employee_id', employeeIds);
+    const { data: subscriptions } = await supabase
+      .from('push_subscriptions')
+      .select('employee_id, subscription')
+      .in('employee_id', employeeIds);
     const subMap = new Map((subscriptions || []).map(s => [s.employee_id, s.subscription]));
 
     let sent = 0;
     const notifications: any[] = [];
+    const expiredSubscriptionUserIds: string[] = [];
 
     for (const assignment of assignments) {
       const shift = shiftMap.get(assignment.shift_type_id);
       if (!shift?.start_time || !shift?.end_time) continue;
 
       const sub = subMap.get(assignment.employee_id);
-      if (!sub) continue;
+      if (!sub?.endpoint || !sub?.keys?.p256dh || !sub?.keys?.auth) continue;
 
       const [sh, sm] = shift.start_time.split(':').map(Number);
       const [eh, em] = shift.end_time.split(':').map(Number);
@@ -179,7 +116,7 @@ Deno.serve(async (req) => {
 
       if (payload) {
         try {
-          await sendWebPush(sub, JSON.stringify(payload), vapidPublicKey, vapidPrivateKey);
+          await webpush.sendNotification(sub, JSON.stringify(payload));
           sent++;
           notifications.push({
             employee_id: assignment.employee_id,
@@ -188,14 +125,25 @@ Deno.serve(async (req) => {
             body: payload.body,
             status: 'sent',
           });
-        } catch (err) {
-          console.error(`[Push] Failed for employee ${assignment.employee_id}:`, err);
+        } catch (err: any) {
+          const statusCode = err.statusCode;
+          console.error(`[Push] Failed for employee ${assignment.employee_id}: ${statusCode} ${err.message}`);
+
+          // 410 Gone or 404 Not Found → subscription expired/invalid
+          if (statusCode === 410 || statusCode === 404) {
+            await supabase
+              .from('push_subscriptions')
+              .delete()
+              .eq('employee_id', assignment.employee_id);
+            console.log(`[Push] Removed expired subscription for employee ${assignment.employee_id}`);
+          }
+
           notifications.push({
             employee_id: assignment.employee_id,
             notification_type: payload.tag,
             title: payload.title,
             body: payload.body,
-            status: 'failed',
+            status: statusCode === 429 ? 'rate_limited' : 'failed',
           });
         }
       }
@@ -209,7 +157,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ sent, total: notifications.length }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error('[send-shift-reminders] Error:', err);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
