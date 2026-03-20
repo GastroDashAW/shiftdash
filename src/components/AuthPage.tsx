@@ -187,7 +187,7 @@ export function AuthPage() {
       <section className="relative overflow-hidden">
         <div className="relative h-[50vh] min-h-[340px] sm:h-[56vh] md:h-[60vh]">
           <img
-            src={HERO_IMG}
+            src={loginBg}
             alt="Gastronomie-Team"
             className="absolute inset-0 h-full w-full object-cover"
             crossOrigin="anonymous"
