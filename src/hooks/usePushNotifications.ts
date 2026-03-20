@@ -87,7 +87,7 @@ export function usePushNotifications() {
       const sub = await reg.pushManager.getSubscription();
       if (sub) await sub.unsubscribe();
 
-      await supabase.from('push_subscriptions').delete().eq('user_id', user.id);
+      await supabase.from('push_subscriptions' as any).delete().eq('user_id', user.id);
       setIsSubscribed(false);
     } catch (err) {
       console.error('[Push] Unsubscribe error:', err);
