@@ -41,6 +41,7 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <AuthPage />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/*" element={
         <ProtectedRoute>
           <Layout>
