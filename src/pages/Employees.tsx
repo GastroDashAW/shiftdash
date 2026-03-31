@@ -174,7 +174,7 @@ export default function Employees() {
         toast.success(`Login für ${email} erstellt`);
       }
     } catch (err: any) {
-      toast.error('Fehler: ' + err.message);
+      toast.error('Fehler bei der Login-Erstellung. Bitte erneut versuchen.');
     }
     setCreatingLogin(false);
   };
