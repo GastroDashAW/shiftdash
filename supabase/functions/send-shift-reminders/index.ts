@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
           });
         } catch (err: any) {
           const statusCode = err.statusCode;
-          console.error(`[Push] Failed for employee ${assignment.employee_id}: ${statusCode} ${err.message}`);
+          console.error(`[Push] Send failed: status=${statusCode}`);
 
           // 410 Gone or 404 Not Found → subscription expired/invalid
           if (statusCode === 410 || statusCode === 404) {
@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
               .from('push_subscriptions')
               .delete()
               .eq('employee_id', assignment.employee_id);
-            console.log(`[Push] Removed expired subscription for employee ${assignment.employee_id}`);
+            console.info(`[Push] Removed expired subscription`);
           }
 
           notifications.push({
