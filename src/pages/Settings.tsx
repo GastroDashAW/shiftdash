@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Trash2, Loader2, ShieldAlert } from 'lucide-react';
+import { GdprSection } from '@/components/settings/GdprSection';
 
 export default function Settings() {
   const [open, setOpen] = useState(false);
