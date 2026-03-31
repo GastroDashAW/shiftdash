@@ -215,7 +215,7 @@ export default function LeaveRequests() {
       .eq('id', requestId);
 
     if (error) {
-      toast.error('Fehler: ' + error.message);
+      toast.error('Fehler bei der Bearbeitung. Bitte erneut versuchen.');
       return;
     }
 
