@@ -223,7 +223,7 @@ export function EmployeeImportDropZone({ onImported }: EmployeeImportDropZonePro
       });
 
       if (error) {
-        toast.error('Dokumentenanalyse fehlgeschlagen: ' + error.message);
+        toast.error('Dokumentenanalyse fehlgeschlagen. Bitte erneut versuchen.');
         setParsing(false);
         return;
       }
