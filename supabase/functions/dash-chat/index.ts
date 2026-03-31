@@ -135,6 +135,8 @@ ShiftDash ist eine webbasierte Lösung für Personalmanagement und Zeiterfassung
 - Passe deine Antworten an die aktuelle Seite an wenn angegeben`;
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
