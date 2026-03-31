@@ -139,12 +139,22 @@ export default function Validation() {
 
   const handleRejectEntry = async (entryId: string) => {
     const previousEntries = [...entries];
+    const entry = entries.find(e => e.id === entryId);
     try {
-      // Optimistic update
       setEntries(prev => prev.map(e => e.id === entryId ? { ...e, status: 'rejected' } : e));
 
       const { error } = await supabase.from('time_entries').update({ status: 'rejected' }).eq('id', entryId);
       if (error) throw error;
+
+      if (entry) {
+        await logTimeEntryChange({
+          time_entry_id: entryId,
+          employee_id: entry.employee_id,
+          change_type: 'reject',
+          old_values: { status: entry.status },
+          new_values: { status: 'rejected' },
+        });
+      }
 
       toast.info('Eintrag abgelehnt');
     } catch (err: any) {
