@@ -191,9 +191,9 @@ export default function Employees() {
         },
       });
       if (res.error) {
-        toast.error('Login-Update fehlgeschlagen: ' + (res.error.message || 'Unbekannter Fehler'));
+        toast.error('Login-Update fehlgeschlagen. Bitte erneut versuchen.');
       } else if (res.data?.error) {
-        toast.error('Login-Update fehlgeschlagen: ' + res.data.error);
+        toast.error('Login-Update fehlgeschlagen. Bitte Eingaben prüfen.');
       } else {
         toast.success('Login-Daten aktualisiert');
       }
