@@ -281,7 +281,7 @@ export function EmployeeImportDropZone({ onImported }: EmployeeImportDropZonePro
       const { error } = await supabase.from('employees').insert(payload);
 
       if (error) {
-        toast.error('Import fehlgeschlagen: ' + error.message);
+        toast.error('Import fehlgeschlagen. Bitte erneut versuchen.');
         return;
       }
 
