@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { formatHoursMinutes, formatTime, calculateEffectiveHours } from '@/lib/lgav';
+import { logTimeEntryChange } from '@/lib/audit-log';
 import { ClipboardCheck, Check, CheckCheck, Pencil, ChevronLeft, ChevronRight, AlertTriangle, CalendarClock } from 'lucide-react';
 
 interface TimeEntry {
