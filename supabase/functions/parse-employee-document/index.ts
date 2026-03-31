@@ -152,7 +152,7 @@ Wenn keine Mitarbeiterdaten erkennbar sind, gib ein leeres Array [] zurück.`;
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      console.error("AI Gateway error:", aiResponse.status, errText);
+      console.error("AI Gateway error:", aiResponse.status);
 
       if (aiResponse.status === 429) {
         return new Response(JSON.stringify({ error: "Zu viele Anfragen, bitte später erneut versuchen." }), {
