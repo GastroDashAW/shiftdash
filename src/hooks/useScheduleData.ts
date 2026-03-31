@@ -21,9 +21,15 @@ export function useScheduleData({ year, month, isAdmin }: UseScheduleDataParams)
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`;
     const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
 
+    // Admins get full employee data (including hourly_rate for cost calc)
+    // Employees only get directory info (no salary data)
+    const employeeQuery = isAdmin
+      ? supabase.from('employees').select('id, first_name, last_name, weekly_hours, hourly_rate, cost_center, position').eq('is_active', true)
+      : supabase.from('employees_directory' as any).select('id, first_name, last_name, cost_center, position').eq('is_active', true);
+
     const [shiftsRes, empRes, assignRes, eventsRes, bizRes] = await Promise.all([
       supabase.from('shift_types').select('*').order('sort_order'),
-      supabase.from('employees').select('id, first_name, last_name, weekly_hours, hourly_rate, cost_center, position').eq('is_active', true),
+      employeeQuery,
       supabase.from('schedule_assignments').select('*').gte('date', startDate).lte('date', endDate),
       supabase.from('schedule_events').select('*').gte('date', startDate).lte('date', endDate),
       supabase.from('business_settings').select('closed_days, auto_sync_schedule').limit(1).maybeSingle(),
