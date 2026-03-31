@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { calculateEffectiveHours, checkRestTimeViolation, formatTime, formatHoursMinutes } from '@/lib/lgav';
+import { logTimeEntryChange } from '@/lib/audit-log';
 import { useScheduledShift, getAdjustedClockIn, checkOvertimeClockOut } from '@/hooks/useScheduledShift';
 import { Clock, Play, Square, Coffee, AlertTriangle, UserPlus, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -143,6 +144,14 @@ export default function Dashboard() {
     setIsClockedIn(true);
     setTodayEntries(prev => [...prev, data]);
 
+    // Audit log
+    await logTimeEntryChange({
+      time_entry_id: data.id,
+      employee_id: currentEmployeeId,
+      change_type: 'create',
+      new_values: { clock_in: now.toISOString(), adjusted_clock_in: wasEarly ? adjustedTime.toISOString() : null },
+    });
+
     if (wasEarly && scheduledShift) {
       toast.info(
         `Eingestempelt um ${formatTime(now)} — Dienstbeginn erst um ${scheduledShift.startTime}. Effektive Zeit wird ab Dienstbeginn berechnet.`,
@@ -193,6 +202,14 @@ export default function Dashboard() {
         overtime_minutes: overtime.overtimeMinutes,
       });
     }
+
+    // Audit log
+    await logTimeEntryChange({
+      time_entry_id: activeEntry.id,
+      employee_id: currentEmployeeId!,
+      change_type: 'update',
+      new_values: { clock_out: now.toISOString(), break_minutes: breaks, effective_hours: effective, requires_overtime_approval: requiresApproval },
+    });
 
     setIsClockedIn(false);
     setActiveEntry(null);

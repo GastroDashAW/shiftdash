@@ -871,6 +871,42 @@ export type Database = {
           },
         ]
       }
+      time_entry_audit_log: {
+        Row: {
+          change_type: string
+          changed_by: string
+          created_at: string
+          employee_id: string
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+          reason: string | null
+          time_entry_id: string
+        }
+        Insert: {
+          change_type: string
+          changed_by: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          reason?: string | null
+          time_entry_id: string
+        }
+        Update: {
+          change_type?: string
+          changed_by?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+          reason?: string | null
+          time_entry_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string

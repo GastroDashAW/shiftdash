@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { CalendarCheck, Check, X, Printer, Mail, Loader2, Send } from 'lucide-react';
 import { formatHoursMinutes, formatTime, calculateMonthlyTargetHours, calculateHourlySurcharges } from '@/lib/lgav';
+import { logTimeEntryChange } from '@/lib/audit-log';
 import { getEndOfMonthString, getYearOptions } from '@/lib/date';
 
 const monthNames = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
@@ -114,6 +115,18 @@ export default function Validation() {
         if (empError) throw empError;
       }
 
+      // Audit log for all approved entries
+      await Promise.all(entries.filter(e => e.status === 'pending').map(e =>
+        logTimeEntryChange({
+          time_entry_id: e.id,
+          employee_id: selectedEmployee,
+          change_type: 'approve',
+          old_values: { status: 'pending' },
+          new_values: { status: 'approved' },
+          reason: 'Monatsabschluss-Visierung',
+        })
+      ));
+
       toast.success('Monat visiert ✓');
       setEntries(prev => prev.map(e => pendingIds.includes(e.id) ? { ...e, status: 'approved' } : e));
     } catch (err: any) {
@@ -126,12 +139,22 @@ export default function Validation() {
 
   const handleRejectEntry = async (entryId: string) => {
     const previousEntries = [...entries];
+    const entry = entries.find(e => e.id === entryId);
     try {
-      // Optimistic update
       setEntries(prev => prev.map(e => e.id === entryId ? { ...e, status: 'rejected' } : e));
 
       const { error } = await supabase.from('time_entries').update({ status: 'rejected' }).eq('id', entryId);
       if (error) throw error;
+
+      if (entry) {
+        await logTimeEntryChange({
+          time_entry_id: entryId,
+          employee_id: entry.employee_id,
+          change_type: 'reject',
+          old_values: { status: entry.status },
+          new_values: { status: 'rejected' },
+        });
+      }
 
       toast.info('Eintrag abgelehnt');
     } catch (err: any) {
