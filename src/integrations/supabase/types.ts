@@ -345,6 +345,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       monthly_budgets: {
@@ -443,6 +450,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "monthly_summaries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       notifications_log: {
@@ -479,6 +493,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -529,6 +550,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "overtime_verifications_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
             referencedColumns: ["id"]
           },
           {
@@ -597,6 +625,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "push_subscriptions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       schedule_archives: {
@@ -657,6 +692,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedule_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
             referencedColumns: ["id"]
           },
           {
@@ -820,6 +862,13 @@ export type Database = {
             referencedRelation: "employees"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "time_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees_directory"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_roles: {
@@ -842,7 +891,53 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      employees_directory: {
+        Row: {
+          allowed_shift_types: Json | null
+          available_days: Json | null
+          cost_center: string | null
+          first_name: string | null
+          group_id: string | null
+          id: string | null
+          is_active: boolean | null
+          last_name: string | null
+          position: string | null
+          user_id: string | null
+        }
+        Insert: {
+          allowed_shift_types?: Json | null
+          available_days?: Json | null
+          cost_center?: string | null
+          first_name?: string | null
+          group_id?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          last_name?: string | null
+          position?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          allowed_shift_types?: Json | null
+          available_days?: Json | null
+          cost_center?: string | null
+          first_name?: string | null
+          group_id?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          last_name?: string | null
+          position?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "employee_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       has_role: {
