@@ -144,6 +144,14 @@ export default function Dashboard() {
     setIsClockedIn(true);
     setTodayEntries(prev => [...prev, data]);
 
+    // Audit log
+    await logTimeEntryChange({
+      time_entry_id: data.id,
+      employee_id: currentEmployeeId,
+      change_type: 'create',
+      new_values: { clock_in: now.toISOString(), adjusted_clock_in: wasEarly ? adjustedTime.toISOString() : null },
+    });
+
     if (wasEarly && scheduledShift) {
       toast.info(
         `Eingestempelt um ${formatTime(now)} — Dienstbeginn erst um ${scheduledShift.startTime}. Effektive Zeit wird ab Dienstbeginn berechnet.`,
