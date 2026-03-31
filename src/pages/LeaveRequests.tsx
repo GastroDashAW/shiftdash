@@ -255,7 +255,7 @@ export default function LeaveRequests() {
             .insert(assignments);
 
           if (insertError) {
-            toast.error('Dienstplan-Eintrag fehlgeschlagen: ' + insertError.message);
+            toast.error('Dienstplan-Eintrag konnte nicht erstellt werden.');
           } else {
             toast.success('Im Dienstplan eingetragen');
           }

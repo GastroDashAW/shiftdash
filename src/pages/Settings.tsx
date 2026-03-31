@@ -25,7 +25,7 @@ export default function Settings() {
       navigate('/admin');
     } catch (err: any) {
       console.error('[Settings] handleReset', err);
-      toast({ title: 'Fehler', description: err.message || 'Unbekannter Fehler', variant: 'destructive' });
+      toast({ title: 'Fehler', description: 'Daten-Reset fehlgeschlagen. Bitte erneut versuchen.', variant: 'destructive' });
     } finally {
       setLoading(false);
     }

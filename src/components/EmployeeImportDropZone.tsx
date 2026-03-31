@@ -229,7 +229,7 @@ export function EmployeeImportDropZone({ onImported }: EmployeeImportDropZonePro
       }
 
       if (data?.error) {
-        toast.error(data.error);
+        toast.error('Dokumentenanalyse fehlgeschlagen.');
         setParsing(false);
         return;
       }

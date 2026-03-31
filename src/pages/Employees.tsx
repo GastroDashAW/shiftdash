@@ -198,7 +198,7 @@ export default function Employees() {
         toast.success('Login-Daten aktualisiert');
       }
     } catch (err: any) {
-      toast.error('Fehler: ' + err.message);
+      toast.error('Fehler beim Login-Update. Bitte erneut versuchen.');
     }
     setCreatingLogin(false);
   };

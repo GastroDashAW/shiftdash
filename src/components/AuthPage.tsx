@@ -84,7 +84,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     if (error) {
-      setResetError(error.message);
+      setResetError('Passwort-Reset fehlgeschlagen. Bitte erneut versuchen.');
     } else {
       setResetSent(true);
     }

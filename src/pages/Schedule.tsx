@@ -356,7 +356,7 @@ export default function Schedule() {
       toast.success(`Dienstplan für ${days_count} Tage erstellt (${newAssignments.length} Einträge)`);
       loadData();
     } catch (err: any) {
-      toast.error('Fehler bei der automatischen Erstellung: ' + err.message);
+      toast.error('Fehler bei der automatischen Erstellung. Bitte erneut versuchen.');
     }
 
     setAutoGenerating(false);

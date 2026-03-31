@@ -98,7 +98,7 @@ export function FileDropZone({ onUploaded }: FileDropZoneProps) {
         });
 
       if (dbError) {
-        toast.error('Fehler beim Speichern: ' + dbError.message);
+        toast.error('Fehler beim Speichern. Bitte erneut versuchen.');
         return;
       }
 

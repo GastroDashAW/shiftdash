@@ -136,7 +136,7 @@ export default function Validation() {
       toast.info('Eintrag abgelehnt');
     } catch (err: any) {
       console.error('[Validation] handleRejectEntry', err);
-      toast.error('Fehler: ' + (err.message || 'Unbekannter Fehler'));
+      toast.error('Fehler beim Ablehnen. Bitte erneut versuchen.');
       setEntries(previousEntries);
     }
   };
