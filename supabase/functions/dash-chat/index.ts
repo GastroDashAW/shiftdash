@@ -1,10 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 const SYSTEM_PROMPT = `Du bist Dash, der freundliche und professionelle KI-Assistent von ShiftDash – einer Personalmanagement- und Zeiterfassungs-App für die Schweizer Gastronomie (L-GAV konform).
 
@@ -140,6 +135,8 @@ ShiftDash ist eine webbasierte Lösung für Personalmanagement und Zeiterfassung
 - Passe deine Antworten an die aktuelle Seite an wenn angegeben`;
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
