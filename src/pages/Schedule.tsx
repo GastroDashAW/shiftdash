@@ -345,7 +345,7 @@ export default function Schedule() {
           const chunk = newAssignments.slice(i, i + 500);
           const { error } = await supabase.from('schedule_assignments').insert(chunk);
           if (error) {
-            toast.error('Fehler: ' + error.message);
+            toast.error('Fehler beim Speichern des Dienstplans.');
             setAutoGenerating(false);
             return;
           }
