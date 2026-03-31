@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { calculateEffectiveHours, checkRestTimeViolation, formatTime, formatHoursMinutes } from '@/lib/lgav';
+import { logTimeEntryChange } from '@/lib/audit-log';
 import { useScheduledShift, getAdjustedClockIn, checkOvertimeClockOut } from '@/hooks/useScheduledShift';
 import { Clock, Play, Square, Coffee, AlertTriangle, UserPlus, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
