@@ -14,7 +14,26 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const adminClient = createClient(supabaseUrl, serviceKey);
 
+  // Prevent abuse: only allow if no admin exists yet
+  const { data: existingAdmins } = await adminClient
+    .from("user_roles")
+    .select("id")
+    .eq("role", "admin")
+    .limit(1);
+
+  if (existingAdmins && existingAdmins.length > 0) {
+    return new Response(JSON.stringify({ error: "Admin already exists" }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const { email, password } = await req.json();
+
+  if (!email || !password) {
+    return new Response(JSON.stringify({ error: "Email and password required" }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   // Create user
   const { data: newUser, error } = await adminClient.auth.admin.createUser({
