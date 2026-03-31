@@ -131,7 +131,7 @@ export default function LeaveRequests() {
     });
 
     if (error) {
-      toast.error('Fehler beim Senden: ' + error.message);
+      toast.error('Fehler beim Senden des Antrags. Bitte erneut versuchen.');
     } else {
       toast.success('Antrag gesendet');
       setDateRange(undefined);
