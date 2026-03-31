@@ -203,6 +203,14 @@ export default function Dashboard() {
       });
     }
 
+    // Audit log
+    await logTimeEntryChange({
+      time_entry_id: activeEntry.id,
+      employee_id: currentEmployeeId!,
+      change_type: 'update',
+      new_values: { clock_out: now.toISOString(), break_minutes: breaks, effective_hours: effective, requires_overtime_approval: requiresApproval },
+    });
+
     setIsClockedIn(false);
     setActiveEntry(null);
     setBreakMinutes('');
