@@ -245,7 +245,7 @@ export default function Budget() {
       toast.success('Budget gespeichert');
     } catch (err: any) {
       console.error('[Budget] handleSave', err);
-      toast.error('Fehler: ' + (err.message || 'Unbekannter Fehler'));
+      toast.error('Fehler beim Speichern. Bitte erneut versuchen.');
     } finally {
       setSaving(false);
     }
@@ -281,7 +281,7 @@ export default function Budget() {
       toast.success('Tagesumsätze gespeichert');
     } catch (err: any) {
       console.error('[Budget] handleSaveRevenues', err);
-      toast.error('Fehler: ' + (err.message || 'Unbekannter Fehler'));
+      toast.error('Fehler beim Speichern der Umsätze. Bitte erneut versuchen.');
     } finally {
       setSavingRevenues(false);
     }

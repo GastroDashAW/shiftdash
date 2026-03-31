@@ -89,7 +89,7 @@ export function ShiftPlanConfig({ shifts }: { shifts: ShiftType[] }) {
       .upsert(rows, { onConflict: 'shift_type_id,day_of_week' });
 
     if (error) {
-      toast.error('Fehler beim Speichern: ' + error.message);
+      toast.error('Fehler beim Speichern. Bitte erneut versuchen.');
     } else {
       toast.success('Shift Plan gespeichert');
     }

@@ -223,13 +223,13 @@ export function EmployeeImportDropZone({ onImported }: EmployeeImportDropZonePro
       });
 
       if (error) {
-        toast.error('Dokumentenanalyse fehlgeschlagen: ' + error.message);
+        toast.error('Dokumentenanalyse fehlgeschlagen. Bitte erneut versuchen.');
         setParsing(false);
         return;
       }
 
       if (data?.error) {
-        toast.error(data.error);
+        toast.error('Dokumentenanalyse fehlgeschlagen.');
         setParsing(false);
         return;
       }
@@ -281,7 +281,7 @@ export function EmployeeImportDropZone({ onImported }: EmployeeImportDropZonePro
       const { error } = await supabase.from('employees').insert(payload);
 
       if (error) {
-        toast.error('Import fehlgeschlagen: ' + error.message);
+        toast.error('Import fehlgeschlagen. Bitte erneut versuchen.');
         return;
       }
 

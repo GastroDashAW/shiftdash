@@ -131,7 +131,7 @@ export default function LeaveRequests() {
     });
 
     if (error) {
-      toast.error('Fehler beim Senden: ' + error.message);
+      toast.error('Fehler beim Senden des Antrags. Bitte erneut versuchen.');
     } else {
       toast.success('Antrag gesendet');
       setDateRange(undefined);
@@ -215,7 +215,7 @@ export default function LeaveRequests() {
       .eq('id', requestId);
 
     if (error) {
-      toast.error('Fehler: ' + error.message);
+      toast.error('Fehler bei der Bearbeitung. Bitte erneut versuchen.');
       return;
     }
 
@@ -255,7 +255,7 @@ export default function LeaveRequests() {
             .insert(assignments);
 
           if (insertError) {
-            toast.error('Dienstplan-Eintrag fehlgeschlagen: ' + insertError.message);
+            toast.error('Dienstplan-Eintrag konnte nicht erstellt werden.');
           } else {
             toast.success('Im Dienstplan eingetragen');
           }

@@ -118,7 +118,7 @@ export default function Validation() {
       setEntries(prev => prev.map(e => pendingIds.includes(e.id) ? { ...e, status: 'approved' } : e));
     } catch (err: any) {
       console.error('[Validation] handleApproveAll', err);
-      toast.error('Fehler: ' + (err.message || 'Unbekannter Fehler'));
+      toast.error('Fehler beim Visieren. Bitte erneut versuchen.');
       // Revert optimistic update
       setEntries(previousEntries);
     }
@@ -136,7 +136,7 @@ export default function Validation() {
       toast.info('Eintrag abgelehnt');
     } catch (err: any) {
       console.error('[Validation] handleRejectEntry', err);
-      toast.error('Fehler: ' + (err.message || 'Unbekannter Fehler'));
+      toast.error('Fehler beim Ablehnen. Bitte erneut versuchen.');
       setEntries(previousEntries);
     }
   };

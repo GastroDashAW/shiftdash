@@ -56,7 +56,7 @@ export function ScheduleArchivePanel({ currentAssignments, currentStartDate, cur
       })),
     } as any);
     if (error) {
-      toast.error('Fehler beim Speichern: ' + error.message);
+      toast.error('Fehler beim Archivieren. Bitte erneut versuchen.');
     } else {
       toast.success('Dienstplan archiviert');
       setSaveDialogOpen(false);

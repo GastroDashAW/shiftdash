@@ -167,14 +167,14 @@ export default function Employees() {
         },
       });
       if (res.error) {
-        toast.error('Login-Erstellung fehlgeschlagen: ' + (res.error.message || 'Unbekannter Fehler'));
+        toast.error('Login-Erstellung fehlgeschlagen. Bitte erneut versuchen.');
       } else if (res.data?.error) {
-        toast.error('Login-Erstellung fehlgeschlagen: ' + res.data.error);
+        toast.error('Login-Erstellung fehlgeschlagen. Bitte Eingaben prüfen.');
       } else {
         toast.success(`Login für ${email} erstellt`);
       }
     } catch (err: any) {
-      toast.error('Fehler: ' + err.message);
+      toast.error('Fehler bei der Login-Erstellung. Bitte erneut versuchen.');
     }
     setCreatingLogin(false);
   };
@@ -191,14 +191,14 @@ export default function Employees() {
         },
       });
       if (res.error) {
-        toast.error('Login-Update fehlgeschlagen: ' + (res.error.message || 'Unbekannter Fehler'));
+        toast.error('Login-Update fehlgeschlagen. Bitte erneut versuchen.');
       } else if (res.data?.error) {
-        toast.error('Login-Update fehlgeschlagen: ' + res.data.error);
+        toast.error('Login-Update fehlgeschlagen. Bitte Eingaben prüfen.');
       } else {
         toast.success('Login-Daten aktualisiert');
       }
     } catch (err: any) {
-      toast.error('Fehler: ' + err.message);
+      toast.error('Fehler beim Login-Update. Bitte erneut versuchen.');
     }
     setCreatingLogin(false);
   };

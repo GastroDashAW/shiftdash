@@ -183,7 +183,7 @@ export default function Schedule() {
       setUndoSnapshot(null);
       loadData();
     } catch (err: any) {
-      toast.error('Fehler beim Zurückstellen: ' + err.message);
+      toast.error('Fehler beim Zurückstellen. Bitte erneut versuchen.');
     }
   };
 
@@ -345,7 +345,7 @@ export default function Schedule() {
           const chunk = newAssignments.slice(i, i + 500);
           const { error } = await supabase.from('schedule_assignments').insert(chunk);
           if (error) {
-            toast.error('Fehler: ' + error.message);
+            toast.error('Fehler beim Speichern des Dienstplans.');
             setAutoGenerating(false);
             return;
           }
@@ -356,7 +356,7 @@ export default function Schedule() {
       toast.success(`Dienstplan für ${days_count} Tage erstellt (${newAssignments.length} Einträge)`);
       loadData();
     } catch (err: any) {
-      toast.error('Fehler bei der automatischen Erstellung: ' + err.message);
+      toast.error('Fehler bei der automatischen Erstellung. Bitte erneut versuchen.');
     }
 
     setAutoGenerating(false);
