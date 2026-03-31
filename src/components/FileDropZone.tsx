@@ -84,7 +84,7 @@ export function FileDropZone({ onUploaded }: FileDropZoneProps) {
         .upload(filePath, file);
 
       if (uploadError) {
-        toast.error('Upload fehlgeschlagen: ' + uploadError.message);
+        toast.error('Upload fehlgeschlagen. Bitte erneut versuchen.');
         return;
       }
 
