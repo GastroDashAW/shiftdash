@@ -245,7 +245,7 @@ export default function Budget() {
       toast.success('Budget gespeichert');
     } catch (err: any) {
       console.error('[Budget] handleSave', err);
-      toast.error('Fehler: ' + (err.message || 'Unbekannter Fehler'));
+      toast.error('Fehler beim Speichern. Bitte erneut versuchen.');
     } finally {
       setSaving(false);
     }
