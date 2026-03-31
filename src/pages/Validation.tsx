@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { CalendarCheck, Check, X, Printer, Mail, Loader2, Send } from 'lucide-react';
 import { formatHoursMinutes, formatTime, calculateMonthlyTargetHours, calculateHourlySurcharges } from '@/lib/lgav';
+import { logTimeEntryChange } from '@/lib/audit-log';
 import { getEndOfMonthString, getYearOptions } from '@/lib/date';
 
 const monthNames = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
