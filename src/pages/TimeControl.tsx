@@ -165,21 +165,22 @@ export default function TimeControl() {
     }
 
     const breaks = parseInt(editBreak) || 0;
-    // Effective hours based on adjusted times (override)
     const effectiveStart = adjClockIn || editEntry.clock_in;
     const effectiveEnd = adjClockOut || editEntry.clock_out;
     const effective = effectiveStart && effectiveEnd ? calculateEffectiveHours(effectiveStart, effectiveEnd, breaks) : 0;
 
+    const newValues = {
+      adjusted_clock_in: adjClockIn,
+      adjusted_clock_out: adjClockOut,
+      break_minutes: breaks,
+      effective_hours: effective,
+      notes: editNotes || null,
+      requires_overtime_approval: false,
+    };
+
     const { error } = await supabase
       .from('time_entries')
-      .update({
-        adjusted_clock_in: adjClockIn,
-        adjusted_clock_out: adjClockOut,
-        break_minutes: breaks,
-        effective_hours: effective,
-        notes: editNotes || null,
-        requires_overtime_approval: false,
-      })
+      .update(newValues)
       .eq('id', editEntry.id);
 
     if (error) {
@@ -187,21 +188,57 @@ export default function TimeControl() {
       return;
     }
 
+    // Audit log
+    await logTimeEntryChange({
+      time_entry_id: editEntry.id,
+      employee_id: editEntry.employee_id,
+      change_type: 'correct',
+      old_values: {
+        adjusted_clock_in: editEntry.adjusted_clock_in,
+        adjusted_clock_out: editEntry.adjusted_clock_out,
+        break_minutes: editEntry.break_minutes,
+        effective_hours: editEntry.effective_hours,
+      },
+      new_values: newValues,
+      reason: editNotes || 'Admin-Korrektur',
+    });
+
     toast.success('Eintrag korrigiert');
     setEditEntry(null);
     loadEntries();
   };
 
   const approveEntry = async (id: string) => {
+    const entry = entries.find(e => e.id === id);
     await supabase.from('time_entries').update({ status: 'approved' }).eq('id', id);
+    if (entry) {
+      await logTimeEntryChange({
+        time_entry_id: id,
+        employee_id: entry.employee_id,
+        change_type: 'approve',
+        old_values: { status: entry.status },
+        new_values: { status: 'approved' },
+      });
+    }
     setEntries(prev => prev.map(e => e.id === id ? { ...e, status: 'approved' } : e));
     toast.success('Freigegeben');
   };
 
   const approveAll = async () => {
-    const pendingIds = entries.filter(e => e.status === 'pending').map(e => e.id);
-    if (pendingIds.length === 0) return;
+    const pendingEntries = entries.filter(e => e.status === 'pending');
+    if (pendingEntries.length === 0) return;
+    const pendingIds = pendingEntries.map(e => e.id);
     await supabase.from('time_entries').update({ status: 'approved' }).in('id', pendingIds);
+    // Log each approval
+    await Promise.all(pendingEntries.map(e =>
+      logTimeEntryChange({
+        time_entry_id: e.id,
+        employee_id: e.employee_id,
+        change_type: 'approve',
+        old_values: { status: 'pending' },
+        new_values: { status: 'approved' },
+      })
+    ));
     setEntries(prev => prev.map(e => pendingIds.includes(e.id) ? { ...e, status: 'approved' } : e));
     toast.success(`${pendingIds.length} Einträge freigegeben`);
   };
