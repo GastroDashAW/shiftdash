@@ -183,7 +183,7 @@ export default function Schedule() {
       setUndoSnapshot(null);
       loadData();
     } catch (err: any) {
-      toast.error('Fehler beim Zurückstellen: ' + err.message);
+      toast.error('Fehler beim Zurückstellen. Bitte erneut versuchen.');
     }
   };
 
