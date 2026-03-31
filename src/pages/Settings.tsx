@@ -85,4 +85,5 @@ export default function Settings() {
 
       <GdprSection />
     </div>
+  );
 }
