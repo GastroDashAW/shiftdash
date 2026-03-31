@@ -192,7 +192,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {
-    console.error("dash-chat error:", e);
+    console.error("dash-chat error:", e instanceof Error ? e.message : "Unknown");
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unbekannter Fehler" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

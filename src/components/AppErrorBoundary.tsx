@@ -18,7 +18,7 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('App render error:', error, errorInfo);
+    console.error('App render error:', error.message);
   }
 
   render() {

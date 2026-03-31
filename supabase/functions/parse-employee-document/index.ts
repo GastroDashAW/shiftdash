@@ -192,7 +192,7 @@ Wenn keine Mitarbeiterdaten erkennbar sind, gib ein leeres Array [] zurück.`;
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
-    console.error("parse-employee-document error:", err);
+    console.error("parse-employee-document error:", err.message);
     return new Response(JSON.stringify({ error: err.message || "Unbekannter Fehler" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
