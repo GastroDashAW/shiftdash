@@ -115,6 +115,18 @@ export default function Validation() {
         if (empError) throw empError;
       }
 
+      // Audit log for all approved entries
+      await Promise.all(entries.filter(e => e.status === 'pending').map(e =>
+        logTimeEntryChange({
+          time_entry_id: e.id,
+          employee_id: selectedEmployee,
+          change_type: 'approve',
+          old_values: { status: 'pending' },
+          new_values: { status: 'approved' },
+          reason: 'Monatsabschluss-Visierung',
+        })
+      ));
+
       toast.success('Monat visiert ✓');
       setEntries(prev => prev.map(e => pendingIds.includes(e.id) ? { ...e, status: 'approved' } : e));
     } catch (err: any) {
