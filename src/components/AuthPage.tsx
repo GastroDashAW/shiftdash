@@ -66,10 +66,10 @@ function AuthModal({ onClose }: { onClose: () => void }) {
     setLoading(true);
     if (mode === 'login') {
       const { error } = await signIn(email, password);
-      if (error) toast.error('Login fehlgeschlagen: ' + error.message);
+      if (error) toast.error('Login fehlgeschlagen. Bitte E-Mail und Passwort prüfen.');
     } else if (mode === 'register') {
       const { error } = await signUp(email, password, fullName);
-      if (error) toast.error('Registrierung fehlgeschlagen: ' + error.message);
+      if (error) toast.error('Registrierung fehlgeschlagen. Bitte Eingaben prüfen.');
       else toast.success('Registrierung erfolgreich! Bitte bestätige deine E-Mail.');
     }
     setLoading(false);
