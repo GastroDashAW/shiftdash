@@ -61,30 +61,62 @@ ChartContainer.displayName = "Chart";
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(([_, config]) => config.theme || config.color);
 
-  if (!colorConfig.length) {
-    return null;
-  }
+  React.useEffect(() => {
+    if (!colorConfig.length) return;
 
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
-  })
-  .join("\n")}
-}
-`,
-          )
-          .join("\n"),
-      }}
-    />
-  );
+    // Apply CSS variables directly to the chart container element
+    const applyVars = (theme: keyof typeof THEMES) => {
+      const isDark = theme === "dark";
+      const root = document.querySelector(
+        isDark ? `.dark [data-chart=${id}]` : `[data-chart=${id}]`
+      ) as HTMLElement | null;
+
+      if (!root) return;
+
+      colorConfig.forEach(([key, itemConfig]) => {
+        const color =
+          itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
+        if (color) {
+          root.style.setProperty(`--color-${key}`, color);
+        }
+      });
+    };
+
+    // Apply light theme vars to the element itself
+    const el = document.querySelector(`[data-chart=${id}]`) as HTMLElement | null;
+    if (el) {
+      colorConfig.forEach(([key, itemConfig]) => {
+        const color = itemConfig.theme?.light || itemConfig.color;
+        if (color) {
+          el.style.setProperty(`--color-${key}`, color);
+        }
+      });
+    }
+
+    // Observe dark mode changes
+    const observer = new MutationObserver(() => {
+      const isDark = document.documentElement.classList.contains("dark");
+      const target = document.querySelector(`[data-chart=${id}]`) as HTMLElement | null;
+      if (!target) return;
+      colorConfig.forEach(([key, itemConfig]) => {
+        const color = isDark
+          ? (itemConfig.theme?.dark || itemConfig.color)
+          : (itemConfig.theme?.light || itemConfig.color);
+        if (color) {
+          target.style.setProperty(`--color-${key}`, color);
+        }
+      });
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => observer.disconnect();
+  }, [id, colorConfig]);
+
+  return null;
 };
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
