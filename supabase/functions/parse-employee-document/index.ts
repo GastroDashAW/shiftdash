@@ -152,7 +152,7 @@ Wenn keine Mitarbeiterdaten erkennbar sind, gib ein leeres Array [] zurück.`;
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      console.error("AI Gateway error:", aiResponse.status, errText);
+      console.error("AI Gateway error:", aiResponse.status);
 
       if (aiResponse.status === 429) {
         return new Response(JSON.stringify({ error: "Zu viele Anfragen, bitte später erneut versuchen." }), {
@@ -192,7 +192,7 @@ Wenn keine Mitarbeiterdaten erkennbar sind, gib ein leeres Array [] zurück.`;
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
-    console.error("parse-employee-document error:", err);
+    console.error("parse-employee-document error:", err.message);
     return new Response(JSON.stringify({ error: err.message || "Unbekannter Fehler" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
