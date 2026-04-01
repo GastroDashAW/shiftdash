@@ -42,12 +42,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (license.status === "active" || license.owner_id) {
-      return new Response(JSON.stringify({ status: "used" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Active licenses are valid for registration – the user still needs to set their password
+    // Only block if some other condition applies in the future
 
     return new Response(JSON.stringify({
       status: "pending",
