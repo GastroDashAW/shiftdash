@@ -6,7 +6,7 @@ import { useLocation } from 'react-router-dom';
 import { Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut, ClipboardCheck, LayoutDashboard, DollarSign, Building2, CalendarPlus, Clock, Settings, ShieldCheck, ChevronDown } from 'lucide-react';
 import shiftDashLogo from '@/assets/shiftdash-logo.png';
 import { BRANDING } from '@/config/branding';
-import { StagingBanner } from '@/components/StagingBanner';
+
 import { DashChatWidget } from '@/components/dash/DashChatWidget';
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -90,7 +90,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      <StagingBanner />
+      
       <header className="sticky top-0 z-50 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-2">

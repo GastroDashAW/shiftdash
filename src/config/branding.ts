@@ -13,11 +13,6 @@ export const BRANDING = {
   /** Untertitel auf der Login-Seite */
   tagline: 'Dienstplanung & Zeiterfassung',
 
-  /** Ist dies eine Test-/Staging-Umgebung? */
-  isStaging: true,
-
-  /** Text im Staging-Banner */
-  stagingLabel: 'Test-Umgebung',
 
   /** Support-Kontakt (optional) */
   supportEmail: '',

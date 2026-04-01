@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BRANDING } from '@/config/branding';
-import { StagingBanner } from '@/components/StagingBanner';
+
 import { DashChatWidget } from '@/components/dash/DashChatWidget';
 import { CalendarDays, Users, Clock, TrendingUp, ArrowRight, X, Lock, Mail, User, ArrowLeft, Loader2 } from 'lucide-react';
 import dashAvatar from '@/assets/dash-avatar.png';
@@ -250,7 +250,7 @@ export function AuthPage() {
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-background">
-      <StagingBanner />
+      
 
       {/* Top Bar */}
       <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur-md">
