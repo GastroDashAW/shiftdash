@@ -52,43 +52,25 @@ const DASH_QUESTIONS = [
 ];
 
 function AuthModal({ onClose }: { onClose: () => void }) {
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [resetError, setResetError] = useState('');
-  const { signIn, signUp } = useAuth();
+  const [mode, setMode] = useState<'login' | 'forgot'>('login');
+  const { signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    if (mode === 'login') {
-      const { error } = await signIn(email, password);
-      if (error) {
-        if (error.message?.includes('Invalid login credentials')) {
-          toast.error('E-Mail oder Passwort ist falsch.');
-        } else if (error.message?.includes('Email not confirmed')) {
-          toast.error('Bitte bestätige zuerst deine E-Mail-Adresse.');
-        } else {
-          toast.error('Anmeldung fehlgeschlagen. Bitte versuche es erneut.');
-        }
-      }
-    } else if (mode === 'register') {
-      const { error } = await signUp(email, password, fullName);
-      if (error) {
-        if (error.message?.includes('already registered') || error.message?.includes('already been registered')) {
-          toast.error('Diese E-Mail-Adresse ist bereits registriert.');
-        } else if (error.message?.includes('password') && error.message?.includes('characters')) {
-          toast.error('Das Passwort muss mindestens 6 Zeichen lang sein.');
-        } else if (error.message?.includes('weak') || error.message?.includes('leaked') || error.message?.includes('breached')) {
-          toast.error('Dieses Passwort ist zu unsicher. Bitte wähle ein stärkeres Passwort.');
-        } else {
-          toast.error(`Registrierung fehlgeschlagen: ${error.message}`);
-        }
+    const { error } = await signIn(email, password);
+    if (error) {
+      if (error.message?.includes('Invalid login credentials')) {
+        toast.error('E-Mail oder Passwort ist falsch.');
+      } else if (error.message?.includes('Email not confirmed')) {
+        toast.error('Bitte bestätige zuerst deine E-Mail-Adresse.');
       } else {
-        toast.success('Registrierung erfolgreich! Bitte prüfe dein E-Mail-Postfach und bestätige deine Adresse.');
+        toast.error('Anmeldung fehlgeschlagen. Bitte versuche es erneut.');
       }
     }
     setLoading(false);
