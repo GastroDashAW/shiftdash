@@ -9,6 +9,8 @@ import { AuthPage } from "@/components/AuthPage";
 import { useAuth } from "@/hooks/useAuth";
 import AdminDashboard from "./pages/AdminDashboard";
 import ResetPassword from "./pages/ResetPassword";
+import Register from "./pages/Register";
+import AdminInvite from "./pages/AdminInvite";
 import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
 import ShiftTypes from "./pages/ShiftTypes";
@@ -41,6 +43,7 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <AuthPage />} />
+      <Route path="/register" element={<Register />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/*" element={
         <ProtectedRoute>
@@ -59,6 +62,7 @@ function AppContent() {
               <Route path="/business" element={<ProtectedRoute adminOnly><Business /></ProtectedRoute>} />
               <Route path="/groups" element={<ProtectedRoute adminOnly><Groups /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
+              <Route path="/admin/invite" element={<ProtectedRoute adminOnly><AdminInvite /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Layout>

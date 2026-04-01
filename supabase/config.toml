@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.reset-data]
 verify_jwt = false
+
+[functions.send-license-invite]
+verify_jwt = false

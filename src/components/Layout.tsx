@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocation } from 'react-router-dom';
-import { Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut, ClipboardCheck, LayoutDashboard, DollarSign, Building2, CalendarPlus, Clock, Settings, ShieldCheck, ChevronDown } from 'lucide-react';
+import { Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut, ClipboardCheck, LayoutDashboard, DollarSign, Building2, CalendarPlus, Clock, Settings, ShieldCheck, ChevronDown, MailPlus } from 'lucide-react';
 import shiftDashLogo from '@/assets/shiftdash-logo.png';
 import { BRANDING } from '@/config/branding';
 
@@ -55,6 +55,7 @@ export function Layout({ children }: { children: ReactNode }) {
       label: 'Verwaltung',
       items: [
         { to: '/business', label: 'Betrieb', icon: Building2, adminOnly: true },
+        { to: '/admin/invite', label: 'Einladungen', icon: MailPlus, adminOnly: true },
         { to: '/settings', label: 'Einstellungen', icon: Settings, adminOnly: true },
       ],
     },
