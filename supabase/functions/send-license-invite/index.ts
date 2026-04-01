@@ -96,6 +96,16 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Check if user already exists in auth
+    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+    if (existingUsers?.users?.some((u: { email?: string }) => u.email?.toLowerCase() === email.toLowerCase())) {
+      await supabaseAdmin.from("licenses").delete().eq("id", license.id);
+      return new Response(
+        JSON.stringify({ error: "Ein Benutzer mit dieser E-Mail-Adresse ist bereits registriert." }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Determine the app origin for the redirect URL
     const origin = req.headers.get("origin") || Deno.env.get("SUPABASE_URL")!;
     const redirectTo = `${origin}/register?license=${license.id}`;
