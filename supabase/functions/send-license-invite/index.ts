@@ -139,7 +139,6 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         license_id: license.id,
-        invite_link: redirectTo,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
