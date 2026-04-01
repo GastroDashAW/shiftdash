@@ -6,7 +6,7 @@ import { useLocation } from 'react-router-dom';
 import { Users, CalendarCheck, FileDown, Menu, X, Layers, CalendarDays, LogOut, ClipboardCheck, LayoutDashboard, DollarSign, Building2, CalendarPlus, Clock, Settings, ShieldCheck, ChevronDown } from 'lucide-react';
 import shiftDashLogo from '@/assets/shiftdash-logo.png';
 import { BRANDING } from '@/config/branding';
-import { StagingBanner } from '@/components/StagingBanner';
+
 import { DashChatWidget } from '@/components/dash/DashChatWidget';
 
 export function Layout({ children }: { children: ReactNode }) {
