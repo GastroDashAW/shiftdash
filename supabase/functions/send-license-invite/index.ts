@@ -106,9 +106,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Determine the app origin for the redirect URL
-    const origin = req.headers.get("origin") || Deno.env.get("SUPABASE_URL")!;
-    const redirectTo = `${origin}/register?license=${license.id}`;
+    // Use stable APP_URL for the redirect (origin header is unreliable in edge functions)
+    const appUrl = (Deno.env.get("APP_URL") || "").replace(/\/$/, "");
+    if (!appUrl) {
+      return new Response(
+        JSON.stringify({ error: "APP_URL ist nicht konfiguriert." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const redirectTo = `${appUrl}/register?license=${license.id}`;
 
     // Invite user via Supabase Auth – sends the invitation email automatically
     const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
