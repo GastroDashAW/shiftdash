@@ -250,7 +250,7 @@ export function AuthPage() {
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-background">
-      <StagingBanner />
+      
 
       {/* Top Bar */}
       <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur-md">
