@@ -55,6 +55,7 @@ export function Layout({ children }: { children: ReactNode }) {
       label: 'Verwaltung',
       items: [
         { to: '/business', label: 'Betrieb', icon: Building2, adminOnly: true },
+        { to: '/admin/invite', label: 'Einladungen', icon: MailPlus, adminOnly: true },
         { to: '/settings', label: 'Einstellungen', icon: Settings, adminOnly: true },
       ],
     },
