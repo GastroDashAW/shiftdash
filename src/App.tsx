@@ -9,6 +9,8 @@ import { AuthPage } from "@/components/AuthPage";
 import { useAuth } from "@/hooks/useAuth";
 import AdminDashboard from "./pages/AdminDashboard";
 import ResetPassword from "./pages/ResetPassword";
+import Register from "./pages/Register";
+import AdminInvite from "./pages/AdminInvite";
 import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
 import ShiftTypes from "./pages/ShiftTypes";
