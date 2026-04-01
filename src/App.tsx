@@ -62,6 +62,7 @@ function AppContent() {
               <Route path="/business" element={<ProtectedRoute adminOnly><Business /></ProtectedRoute>} />
               <Route path="/groups" element={<ProtectedRoute adminOnly><Groups /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
+              <Route path="/admin/invite" element={<ProtectedRoute adminOnly><AdminInvite /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Layout>
