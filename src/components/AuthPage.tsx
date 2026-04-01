@@ -164,33 +164,9 @@ function AuthModal({ onClose }: { onClose: () => void }) {
             )}
           </div>
         ) : (
-          /* Login / Register View */
+          /* Login View (no register tab) */
           <>
-            <div className="mb-5 flex rounded-lg border bg-muted p-1">
-              <button
-                onClick={() => setMode('login')}
-                className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${mode === 'login' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                Anmelden
-              </button>
-              <button
-                onClick={() => setMode('register')}
-                className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${mode === 'register' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                Registrieren
-              </button>
-            </div>
-
             <form onSubmit={handleSubmit} className="space-y-4">
-              {mode === 'register' && (
-                <div className="space-y-1.5">
-                  <Label htmlFor="fullName" className="text-xs font-medium">Name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input id="fullName" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Max Muster" className="pl-9 h-11" required />
-                  </div>
-                </div>
-              )}
               <div className="space-y-1.5">
                 <Label htmlFor="email" className="text-xs font-medium">E-Mail</Label>
                 <div className="relative">
@@ -205,21 +181,23 @@ function AuthModal({ onClose }: { onClose: () => void }) {
                   <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="pl-9 h-11" required minLength={6} />
                 </div>
               </div>
-              {mode === 'login' && (
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setMode('forgot')}
-                    className="text-xs text-accent hover:underline"
-                  >
-                    Passwort vergessen?
-                  </button>
-                </div>
-              )}
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setMode('forgot')}
+                  className="text-xs text-accent hover:underline"
+                >
+                  Passwort vergessen?
+                </button>
+              </div>
               <Button type="submit" className="w-full h-11 text-sm font-semibold" disabled={loading}>
-                {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Laden...</> : mode === 'login' ? 'Anmelden' : 'Registrieren'}
+                {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Laden...</> : 'Anmelden'}
               </Button>
             </form>
+
+            <p className="mt-4 text-center text-xs text-muted-foreground">
+              Zugang nur per Einladung. Kontaktiere deinen Administrator.
+            </p>
           </>
         )}
       </motion.div>
