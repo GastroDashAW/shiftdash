@@ -43,6 +43,7 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <AuthPage />} />
+      <Route path="/register" element={<Register />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/*" element={
         <ProtectedRoute>
