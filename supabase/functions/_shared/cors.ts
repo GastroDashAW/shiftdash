@@ -1,6 +1,7 @@
 // Allowed origins for CORS – production, preview, and local dev
 const ALLOWED_ORIGINS = [
   "https://shiftdash.lovable.app",
+  "https://a691a375-f349-4362-b9c0-1fdd879ba929.lovableproject.com",
   "https://id-preview--a691a375-f349-4362-b9c0-1fdd879ba929.lovable.app",
   "http://localhost:5173",
   "http://localhost:8080",
