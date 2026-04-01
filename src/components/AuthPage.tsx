@@ -37,7 +37,7 @@ const FEATURES = [
   },
   {
     icon: TrendingUp,
-    title: 'Budget & Wareneinsatz',
+    title: 'Budget & Personalkosten',
     desc: 'Vergleiche Personalkosten mit dem Tagesumsatz. Erkenne sofort wo die Marge unter Druck gerät.',
     img: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&q=80',
     fallback: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80',
