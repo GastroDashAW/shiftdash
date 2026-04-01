@@ -101,8 +101,8 @@ Deno.serve(async (req) => {
     if (existingUsers?.users?.some((u: { email?: string }) => u.email?.toLowerCase() === email.toLowerCase())) {
       await supabaseAdmin.from("licenses").delete().eq("id", license.id);
       return new Response(
-        JSON.stringify({ error: "Ein Benutzer mit dieser E-Mail-Adresse ist bereits registriert." }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        JSON.stringify({ ok: false, code: "USER_ALREADY_EXISTS", error: "Ein Benutzer mit dieser E-Mail-Adresse ist bereits registriert." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
