@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.send-license-invite]
 verify_jwt = false
+
+[functions.validate-license-registration]
+verify_jwt = false
