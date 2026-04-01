@@ -8,15 +8,18 @@ import { BRANDING } from '@/config/branding';
 import { toast } from 'sonner';
 import { Loader2, Lock, User, Building2, AlertTriangle } from 'lucide-react';
 
+type LicenseStatus = 'invalid' | 'used' | 'pending';
+
 export default function Register() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const licenseId = searchParams.get('license');
 
   const [validating, setValidating] = useState(true);
-  const [licenseValid, setLicenseValid] = useState(false);
+  const [licenseStatus, setLicenseStatus] = useState<LicenseStatus>('invalid');
   const [licenseEmail, setLicenseEmail] = useState('');
   const [hasSession, setHasSession] = useState(false);
+  const [sessionMismatch, setSessionMismatch] = useState(false);
 
   const [fullName, setFullName] = useState('');
   const [companyName, setCompanyName] = useState('');
@@ -24,42 +27,68 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Check for existing session (from invite link click) and validate license
   useEffect(() => {
+    let expectedEmail = '';
+
+    const applySessionState = (session: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']) => {
+      const sessionEmail = session?.user.email?.toLowerCase() || '';
+      const matchesInvite = !!expectedEmail && sessionEmail === expectedEmail.toLowerCase();
+
+      setHasSession(matchesInvite);
+      setSessionMismatch(!!session && !matchesInvite);
+
+      if (matchesInvite && session) {
+        setLicenseEmail(session.user.email || expectedEmail);
+        const meta = session.user.user_metadata;
+        if (meta?.company_name) setCompanyName(meta.company_name);
+        if (meta?.full_name) setFullName(meta.full_name);
+      }
+    };
+
     const init = async () => {
       if (!licenseId) {
+        setLicenseStatus('invalid');
         setValidating(false);
         return;
       }
 
-      // Check if user arrived via invite link (has session)
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setHasSession(true);
-        setLicenseEmail(session.user.email || '');
+      const { data, error } = await supabase.functions.invoke('validate-license-registration', {
+        body: { license_id: licenseId },
+      });
 
-        // Pre-fill company name from user metadata
-        const meta = session.user.user_metadata;
-        if (meta?.company_name) setCompanyName(meta.company_name);
+      if (error || !data?.status) {
+        setLicenseStatus('invalid');
+        setValidating(false);
+        return;
       }
 
-      // Validate license exists
-      // We use a direct fetch since RLS may not allow anon access
-      // The license is validated server-side; here we just check format
-      setLicenseValid(true);
+      if (data.status === 'used') {
+        setLicenseStatus('used');
+        setValidating(false);
+        return;
+      }
+
+      if (data.status !== 'pending' || !data.email) {
+        setLicenseStatus('invalid');
+        setValidating(false);
+        return;
+      }
+
+      expectedEmail = data.email;
+      setLicenseStatus('pending');
+      setLicenseEmail(data.email);
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      applySessionState(sessionData.session);
       setValidating(false);
     };
 
     init();
 
-    // Listen for auth state changes (invite link token exchange)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          setHasSession(true);
-          setLicenseEmail(session.user.email || '');
-          const meta = session.user.user_metadata;
-          if (meta?.company_name) setCompanyName(meta.company_name);
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+          applySessionState(session);
         }
       },
     );
@@ -82,14 +111,12 @@ export default function Register() {
     setLoading(true);
     try {
       if (hasSession) {
-        // User arrived via invite link – just set password and update profile
         const { error: updateError } = await supabase.auth.updateUser({
           password,
           data: { full_name: fullName, company_name: companyName },
         });
         if (updateError) throw updateError;
 
-        // Update profile in DB
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           await supabase
@@ -104,8 +131,7 @@ export default function Register() {
         toast.success('Registrierung abgeschlossen!');
         navigate('/', { replace: true });
       } else {
-        // Fallback: should not happen in normal flow
-        toast.error('Bitte verwende den Link aus der Einladungs-E-Mail.');
+        toast.error('Bitte öffne den Einladungslink aus der E-Mail.');
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Registrierung fehlgeschlagen.';
@@ -127,14 +153,31 @@ export default function Register() {
     );
   }
 
-  if (!licenseId || !licenseValid) {
+  if (!licenseId || licenseStatus === 'invalid') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-4">
-        <div className="w-full max-w-md rounded-2xl border bg-card p-8 shadow-lg text-center">
+        <div className="w-full max-w-md rounded-2xl border bg-card p-8 text-center shadow-lg">
           <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-destructive" />
           <h1 className="font-heading text-xl font-bold text-foreground">Ungültiger Einladungslink</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Dieser Einladungslink ist ungültig oder wurde bereits verwendet.
+            Dieser Einladungslink ist ungültig oder wurde bereits entfernt.
+          </p>
+          <Button className="mt-6" onClick={() => navigate('/login', { replace: true })}>
+            Zur Anmeldung
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (licenseStatus === 'used') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md rounded-2xl border bg-card p-8 text-center shadow-lg">
+          <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-destructive" />
+          <h1 className="font-heading text-xl font-bold text-foreground">Einladung bereits verwendet</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Diese Einladung wurde bereits abgeschlossen. Bitte melde dich mit deinem Konto an.
           </p>
           <Button className="mt-6" onClick={() => navigate('/login', { replace: true })}>
             Zur Anmeldung
@@ -147,12 +190,17 @@ export default function Register() {
   if (!hasSession) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-4">
-        <div className="w-full max-w-md rounded-2xl border bg-card p-8 shadow-lg text-center">
-          <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-primary" />
-          <h1 className="font-heading text-lg font-bold text-foreground">Einladung wird verarbeitet…</h1>
+        <div className="w-full max-w-md rounded-2xl border bg-card p-8 text-center shadow-lg">
+          <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-primary" />
+          <h1 className="font-heading text-lg font-bold text-foreground">Einladung per E-Mail öffnen</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Bitte warte einen Moment, während dein Konto eingerichtet wird.
+            {sessionMismatch
+              ? 'Du bist aktuell mit einem anderen Konto angemeldet. Bitte melde dich ab oder öffne den Einladungslink in einem privaten Fenster.'
+              : 'Bitte öffne den vollständigen Einladungslink aus der E-Mail. Erst dadurch wird deine Einladung sicher bestätigt.'}
           </p>
+          <Button className="mt-6" onClick={() => navigate('/login', { replace: true })}>
+            Zur Anmeldung
+          </Button>
         </div>
       </div>
     );
@@ -174,7 +222,6 @@ export default function Register() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Email (read-only) */}
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">E-Mail</Label>
             <Input
@@ -184,7 +231,6 @@ export default function Register() {
             />
           </div>
 
-          {/* Full Name */}
           <div className="space-y-1.5">
             <Label htmlFor="reg-name" className="text-xs font-medium">Vollständiger Name</Label>
             <div className="relative">
@@ -194,13 +240,12 @@ export default function Register() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Max Muster"
-                className="pl-9 h-11"
+                className="h-11 pl-9"
                 required
               />
             </div>
           </div>
 
-          {/* Company Name */}
           <div className="space-y-1.5">
             <Label htmlFor="reg-company" className="text-xs font-medium">Firmenname</Label>
             <div className="relative">
@@ -210,13 +255,12 @@ export default function Register() {
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
                 placeholder="Restaurant Muster AG"
-                className="pl-9 h-11"
+                className="h-11 pl-9"
                 required
               />
             </div>
           </div>
 
-          {/* Password */}
           <div className="space-y-1.5">
             <Label htmlFor="reg-password" className="text-xs font-medium">Passwort (mind. 8 Zeichen)</Label>
             <div className="relative">
@@ -227,14 +271,13 @@ export default function Register() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="pl-9 h-11"
+                className="h-11 pl-9"
                 required
                 minLength={8}
               />
             </div>
           </div>
 
-          {/* Confirm Password */}
           <div className="space-y-1.5">
             <Label htmlFor="reg-confirm" className="text-xs font-medium">Passwort bestätigen</Label>
             <div className="relative">
@@ -245,14 +288,14 @@ export default function Register() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
-                className="pl-9 h-11"
+                className="h-11 pl-9"
                 required
                 minLength={8}
               />
             </div>
           </div>
 
-          <Button type="submit" className="w-full h-11 text-sm font-semibold" disabled={loading}>
+          <Button type="submit" className="h-11 w-full text-sm font-semibold" disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" /> Wird eingerichtet…
