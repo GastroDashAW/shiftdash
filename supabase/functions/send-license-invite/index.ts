@@ -4,7 +4,7 @@ import { z } from "npm:zod@3.23.8";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const InputSchema = z.object({
@@ -18,9 +18,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Validate JWT – only admins / license_owners may call this
     const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -32,24 +31,29 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Verify calling user is admin
-    const anonClient = createClient(
+    // Verify JWT using getClaims
+    const token = authHeader.replace("Bearer ", "");
+    const userClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { authorization: authHeader } } },
     );
-    const { data: { user }, error: userError } = await anonClient.auth.getUser();
-    if (userError || !user) {
+
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
+    const userId = claimsData.claims.sub as string;
+
+    // Verify calling user is admin
     const { data: roles } = await supabaseAdmin
       .from("user_roles")
       .select("role")
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
     const isAdmin = roles?.some((r: { role: string }) => r.role === "admin");
     if (!isAdmin) {
       return new Response(
@@ -103,7 +107,7 @@ Deno.serve(async (req) => {
     const redirectTo = `${origin}/register?license=${license.id}`;
 
     // Invite user via Supabase Auth – sends the invitation email automatically
-    const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+    const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
       email,
       {
         data: {
@@ -126,11 +130,6 @@ Deno.serve(async (req) => {
     // STORE WEBHOOK: call send-license-invite automatically
     // when a successful payment is received from the store.
     // Input will come from the store payload (email, product_id).
-    // Example:
-    //   if (source === 'store_webhook') {
-    //     const { email, product_id } = storePayload;
-    //     // create license and invite as above
-    //   }
 
     return new Response(
       JSON.stringify({
