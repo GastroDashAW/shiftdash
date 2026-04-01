@@ -354,6 +354,33 @@ export type Database = {
           },
         ]
       }
+      licenses: {
+        Row: {
+          activated_at: string | null
+          created_at: string
+          email: string
+          id: string
+          owner_id: string | null
+          status: string
+        }
+        Insert: {
+          activated_at?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          owner_id?: string | null
+          status?: string
+        }
+        Update: {
+          activated_at?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          owner_id?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       monthly_budgets: {
         Row: {
           created_at: string
@@ -570,30 +597,50 @@ export type Database = {
       }
       profiles: {
         Row: {
+          company_name: string | null
           created_at: string
           email: string | null
           full_name: string
           id: string
+          license_id: string | null
+          owner_id: string | null
+          role: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          company_name?: string | null
           created_at?: string
           email?: string | null
           full_name?: string
           id?: string
+          license_id?: string | null
+          owner_id?: string | null
+          role?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          company_name?: string | null
           created_at?: string
           email?: string | null
           full_name?: string
           id?: string
+          license_id?: string | null
+          owner_id?: string | null
+          role?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_license_id_fkey"
+            columns: ["license_id"]
+            isOneToOne: false
+            referencedRelation: "licenses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       push_subscriptions: {
         Row: {
